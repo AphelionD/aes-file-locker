@@ -1,4 +1,4 @@
-'''AES_file_locker [version 1.0]
+'''AES_file_locker [version 1.1]
 Powered by Python.
 (c)2023 Illumination Studio, Yanteen Technology,.Ltd.'''
 import json
@@ -8,6 +8,7 @@ import hashlib
 import random
 from glob import glob
 from shutil import rmtree, move
+from tqdm import tqdm
 def all_files_can_be_moved_by_shutil(dir):
     '''检测一个目录下的文件是否都可以被移动，返回一个包含所有不可被移动的文件的list'''
     def get_all_files_list(dir):
@@ -89,10 +90,30 @@ def md5(fname,  is_file_dir=None, encoding = 'utf-8'):
             hash_md5.update(i)
         return hash_md5.hexdigest()
 
-def encrypt_dir(dir, target_dir, password):
+def encrypt_dir(dir, target_dir, master_password, ignore_check = False):
     dirs, files = copy_dir(dir)
     files = list(filter(lambda x: x!='__Solver.dll' and x!= '__Status.sti' and os.path.splitext(x)[1]!='.afd', files))
     dirs = list(filter(lambda x: x!=get_relative_dir(target_dir, dir), dirs))
+    with tqdm(range(12), leave=False) as tq:
+        for i in tq: #使用scrypt key derivation算法，迭代一个密码消耗3秒左右
+            master_password = hashlib.scrypt(master_password.encode('utf-8'),salt=b'This is salt',n=1024,r=32,p=32).hex()
+    if not os.path.isfile(os.path.join(dir,'__Status.sti')):
+        rand_key = random.randbytes(random.randint(30,60)) + b'===end==='
+        with open(os.path.join(dir,'__Status.sti'), 'wb') as f:
+            f.write(encrypt(master_password, rand_key, b64=False))
+    else:
+        if not ignore_check:
+            with open(os.path.join(dir,'__Status.sti'), 'rb') as f: #先验证密码
+                try:
+                    rand_key = decrypt(master_password, f.read(), b64=False)
+                    if rand_key[-9:]!=b'===end===':
+                        raise Exception
+                except:
+                    print(f'ERROR: Password incorrect for {dir}!!!')
+                    return False
+        rand_key = random.randbytes(random.randint(30,60)) + b'===end==='
+        with open(os.path.join(dir,'__Status.sti'), 'wb') as f:
+            f.write(encrypt(master_password, rand_key, b64=False))
     if len(files)==0:
         print(f'WARNING: No files in {dir}!!!')
         return False
@@ -108,7 +129,7 @@ def encrypt_dir(dir, target_dir, password):
         solver[files[i]]= md5(bytes(str(i), encoding='ascii') + salt)+'.afd'
     for i in files:
         with open(os.path.join(dir, i), 'rb') as f:
-            content = encrypt(password, f.read(), b64=False)
+            content = encrypt(rand_key, f.read(), b64=False)
         with open(os.path.join(target_dir, solver[i]), 'wb') as f:
             f.write(content)
         os.remove(os.path.join(dir, i))
@@ -118,21 +139,26 @@ def encrypt_dir(dir, target_dir, password):
 
     solver = json.dumps([solver,dirs], ensure_ascii=False, indent=4) # 序列化解释器（与dirs列表打包）
     with open(os.path.join(dir, '__Solver.dll'), 'wb') as f:
-        f.write(encrypt(password, solver, b64=False)) # 加密解释器
-    with open(os.path.join(dir,'__Status.sti'), 'w', encoding='utf-8') as f:
-        f.write(encrypt(password,'This info is to check whether the password is correct.'))
+        f.write(encrypt(rand_key, solver, b64=False)) # 加密解释器
     return True
 
-def decrypt_dir(dir, password):
+def decrypt_dir(dir, master_password):
     # if not os.path.isfile(os.path.join(dir,'__Status.sti')): # 不存在状态指示器时，判定为加密。
     #     encrypt_dir(dir, os.path.join(dir, '.__sys'), password)
     # else:
-        with open(os.path.join(dir,'__Status.sti'), 'r', encoding='utf-8') as f:
-            if not decrypt(password, f.read().rstrip('\n'))=='This info is to check whether the password is correct.':
-                print('WARNING: Password incorrect!!!')
+        with tqdm(range(12), leave=False) as tq:
+            for i in tq: #使用scrypt key derivation算法，迭代一个密码消耗3秒左右
+                master_password = hashlib.scrypt(master_password.encode('utf-8'),salt=b'This is salt',n=1024,r=32,p=32).hex()
+        with open(os.path.join(dir,'__Status.sti'), 'rb') as f: #验证密码
+            try:
+                rand_key = decrypt(master_password, f.read(), b64=False)
+                if rand_key[-9:]!=b'===end===':
+                    raise Exception
+            except:
+                print(f'ERROR: Password incorrect for {dir}!!!')
                 return False
         with open(os.path.join(dir,'__Solver.dll'),'rb') as f:
-            solver, dirs = json.loads(decrypt(password, f.read(), b64=False)) # 加载目录解释器
+            solver, dirs = json.loads(decrypt(rand_key, f.read(), b64=False)) # 加载目录解释器
         for i in dirs: # 创建目录
             if not os.path.isdir(os.path.join(dir, i)):
                 os.makedirs(os.path.join(dir, i))
@@ -140,7 +166,7 @@ def decrypt_dir(dir, password):
         for i in glob(os.path.join(os.path.join(dir,'.__sys'), '*.afd')):
             with open(i, 'rb') as f:
                 try:
-                    content = decrypt(password, f.read(), b64=False)
+                    content = decrypt(rand_key, f.read(), b64=False)
                 except:
                     print(f'WARNING: exception when encrypting: {i}, {solver[os.path.basename(i)]}')
                     continue
@@ -198,16 +224,16 @@ if __name__=='__main__':
                 print('WARNING: Password incorrect!!!')
                 check_pass_loop()
 
-        if os.path.isfile(os.path.join(i,'__Status.sti')):
-            check_pass_loop()
-        else:
-            password = input("Set password: ")
-            check = input('Confirm your password: ')
-            if check!=password:
-                print('You inputed diffrent passwords. Failed to lock the folder. ')
-                os.system("pause")
-                exit()
-        print('\n'*1000)
+        # if os.path.isfile(os.path.join(i,'__Status.sti')):
+        #     check_pass_loop()
+        # else:
+        #     password = input("Set password: ")
+        #     check = input('Confirm your password: ')
+        #     if check!=password:
+        #         print('You inputed diffrent passwords. Failed to lock the folder. ')
+        #         os.system("pause")
+        #         exit()
+        # print('\n'*1000)
         # ==============不可删去，等待有两个以上目录时启用===================
         # def execute():
         #     window.destroy()
@@ -229,7 +255,44 @@ if __name__=='__main__':
         # window.mainloop()
         # ================================================================
         if is_encrypted(i):
-            decrypt_dir(i, password)
+            password = input("Input password: ")
+            print('\n'*1000)
+            while not decrypt_dir(i, password):
+                password = input("Input password: ")
+                print('\n'*1000)
         else:
-            encrypt_dir(i, os.path.join(i, '.__sys'), password)
+            if not os.path.isfile(os.path.join(i,'__Status.sti')):
+                password = input("Set password: ")
+                check = input('Confirm your password: ')
+                if check!=password:
+                    print('You inputed diffrent passwords. Failed to lock the folder. ')
+                    os.system("pause")
+                    exit()
+                print('\n'*1000)
+                encrypt_dir(i, os.path.join(i, '.__sys'), password)
+            else:
+                password = input("Input password: ")
+                print('\n'*1000)
+                if password =='Change':
+                    password = input("Set password: ")
+                    check = input('Confirm your password: ')
+                    print('\n'*1000)
+                    if check!=password:
+                        print('You inputed diffrent passwords. Failed to lock the folder. ')
+                        os.system("pause")
+                        exit()
+                    encrypt_dir(i, os.path.join(i, '.__sys'), password, True)
+                while not encrypt_dir(i, os.path.join(i, '.__sys'), password):
+                    password = input("Input password: ")
+                    if password =='Change':
+                        password = input("Set password: ")
+                        check = input('Confirm your password: ')
+                        print('\n'*1000)
+                        if check!=password:
+                            print('You inputed diffrent passwords. Failed to lock the folder. ')
+                            os.system("pause")
+                            exit()
+                        encrypt_dir(i, os.path.join(i, '.__sys'), password, True)
+                        break
+                    print('\n'*1000)
         print('Successfully %sed. ' %('Lock' if is_encrypted(i) else 'Unlock'))
