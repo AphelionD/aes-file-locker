@@ -10,7 +10,6 @@ import random
 from glob import glob
 from shutil import rmtree, move
 from tqdm import tqdm
-from Crypto import Random
 import base64
 def all_files_can_be_moved_by_shutil(dir):
     '''检测一个目录下的文件是否都可以被移动，返回一个包含所有不可被移动的文件的list'''
@@ -103,7 +102,7 @@ def encrypt_dir(dir, target_dir, master_password, ignore_check = False):
         for i in tq: #使用argon2算法，迭代一个密码消耗3秒左右
             master_password = hash_password(master_password,b'This is salt',100,2048,16)
     if not os.path.isfile(os.path.join(dir,'__Status.sti')):
-        rand_key = Random.get_random_bytes(random.randint(60,90)) + b'===end==='
+        rand_key = os.urandom(random.randint(60,90)) + b'===end==='
         with open(os.path.join(dir,'__Status.sti'), 'wb') as f:
             f.write(encrypt(master_password, rand_key, b64=False))
     else:
@@ -116,7 +115,7 @@ def encrypt_dir(dir, target_dir, master_password, ignore_check = False):
                 except:
                     print(f'ERROR: Password incorrect for {dir}!!!')
                     return False
-        rand_key = Random.get_random_bytes(random.randint(60,90)) + b'===end==='
+        rand_key = os.urandom(random.randint(60,90)) + b'===end==='
         with open(os.path.join(dir,'__Status.sti'), 'wb') as f:
             f.write(encrypt(master_password, rand_key, b64=False))
     if len(files)==0:
@@ -129,25 +128,26 @@ def encrypt_dir(dir, target_dir, master_password, ignore_check = False):
         for i in glob(os.path.join(target_dir,'*')):
             os.remove(i)
     solver = {} # 初始化目录解释器
-    salt = Random.get_random_bytes(10)
+    salt = os.urandom(10)
     for i in range(len(files)): # 进行目录解释，为每一个文件指定新的独一无二的文件名
-        solver[files[i]]= (md5(bytes(str(i), encoding='ascii') + salt)+'.afd', get_iv())
+        solver[files[i]]= (md5(bytes(str(i), encoding='ascii') + salt)+'.afd', os.urandom(16))
     for i in files:
         with open(os.path.join(dir, i), 'rb') as f:
             content = encrypt(rand_key, f.read(), b64=False, mode='CBC', iv=solver[i][1])
         with open(os.path.join(target_dir, solver[i][0]), 'wb') as f:
             f.write(content)
+    for i in solver.keys():
+        solver[i]=(solver[i][0],base64.b64encode(solver[i][1]).decode('ascii'))
+    solver = json.dumps([solver,dirs], ensure_ascii=False, indent=4) # 序列化解释器（与dirs列表打包）
+    with open(os.path.join(dir, '__Solver.dll'), 'wb') as f:
+        f.write(encrypt(rand_key, solver, b64=False)) # 加密解释器
+    for i in files:
         with open(os.path.join(dir, i), 'wb') as f:
             f.write(b'')
         os.remove(os.path.join(dir, i))
     for i in dirs:
         if os.path.isdir(os.path.join(dir, i)):
             rmtree(os.path.join(dir, i))
-    for i in solver.keys():
-        solver[i]=(solver[i][0],base64.b64encode(solver[i][1]).decode('ascii'))
-    solver = json.dumps([solver,dirs], ensure_ascii=False, indent=4) # 序列化解释器（与dirs列表打包）
-    with open(os.path.join(dir, '__Solver.dll'), 'wb') as f:
-        f.write(encrypt(rand_key, solver, b64=False)) # 加密解释器
     return True
 
 def decrypt_dir(dir, master_password):
