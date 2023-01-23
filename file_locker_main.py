@@ -10,7 +10,7 @@ import random
 from glob import glob
 from shutil import rmtree, move
 from tqdm import tqdm
-import base64
+from base64 import b64decode, b64encode
 def all_files_can_be_moved_by_shutil(dir):
     '''检测一个目录下的文件是否都可以被移动，返回一个包含所有不可被移动的文件的list'''
     def get_all_files_list(dir):
@@ -92,7 +92,8 @@ def md5(fname,  is_file_dir=None, encoding = 'utf-8'):
             hash_md5.update(i)
         return hash_md5.hexdigest()
 
-def encrypt_dir(dir, target_dir, master_password, ignore_check = False):
+def encrypt_dir(dir, master_password, ignore_check = False):
+    target_dir = os.path.join(dir, '.__sys')
     dirs, files = copy_dir(dir)
     files = list(filter(lambda x: x!='__Solver.dll' and x!= '__Status.sti' and os.path.splitext(x)[1]!='.afd', files))
     dirs = list(filter(lambda x: x!=get_relative_dir(target_dir, dir), dirs))
@@ -137,7 +138,7 @@ def encrypt_dir(dir, target_dir, master_password, ignore_check = False):
         with open(os.path.join(target_dir, solver[i][0]), 'wb') as f:
             f.write(content)
     for i in solver.keys():
-        solver[i]=(solver[i][0],base64.b64encode(solver[i][1]).decode('ascii'))
+        solver[i]=(solver[i][0],b64encode(solver[i][1]).decode('ascii'))
     solver = json.dumps([solver,dirs], ensure_ascii=False, indent=4) # 序列化解释器（与dirs列表打包）
     with open(os.path.join(dir, '__Solver.dll'), 'wb') as f:
         f.write(encrypt(rand_key, solver, b64=False)) # 加密解释器
@@ -172,7 +173,7 @@ def decrypt_dir(dir, master_password):
         for i in dirs: # 创建目录
             if not os.path.isdir(os.path.join(dir, i)):
                 os.makedirs(os.path.join(dir, i))
-        solver = {v[0]: (k,base64.b64decode(v[1].encode('ascii'))) for k, v in solver.items()} # 将解释器反向
+        solver = {v[0]: (k,b64decode(v[1].encode('ascii'))) for k, v in solver.items()} # 将解释器反向
         for i in glob(os.path.join(os.path.join(dir,'.__sys'), '*.afd')):
             with open(i, 'rb') as f:
                 try:
@@ -251,7 +252,7 @@ if __name__=='__main__':
         #         if is_encrypted(i):
         #             decrypt_dir(i, password)
         #         else:
-        #             encrypt_dir(i, os.path.join(i, '.__sys'), password)
+        #             encrypt_dir(i,  password)
         # window = Tk()
         # window.title('Choose an action for %s' % i)
         # window.geometry('400x300')
@@ -279,7 +280,7 @@ if __name__=='__main__':
                     os.system("pause")
                     exit()
                 print('\n'*2000)
-                encrypt_dir(i, os.path.join(i, '.__sys'), password)
+                encrypt_dir(i,  password)
             else:
                 password = input("Input password: ")
                 print('\n'*2000)
@@ -291,8 +292,8 @@ if __name__=='__main__':
                         print('You inputed diffrent passwords. Failed to lock the folder. ')
                         os.system("pause")
                         exit()
-                    encrypt_dir(i, os.path.join(i, '.__sys'), password, True)
-                while not encrypt_dir(i, os.path.join(i, '.__sys'), password):
+                    encrypt_dir(i,  password, True)
+                while not encrypt_dir(i,  password):
                     password = input("Input password: ")
                     if password =='Change':
                         password = input("Set password: ")
@@ -302,7 +303,7 @@ if __name__=='__main__':
                             print('You inputed diffrent passwords. Failed to lock the folder. ')
                             os.system("pause")
                             exit()
-                        encrypt_dir(i, os.path.join(i, '.__sys'), password, True)
+                        encrypt_dir(i,  password, True)
                         break
                     print('\n'*2000)
         print('Successfully %sed. ' %('Lock' if is_encrypted(i) else 'Unlock'))
