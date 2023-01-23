@@ -1,8 +1,6 @@
 '''AES_file_locker [version 1.0]
 Powered by Python.
-(c)2023 Illumination Studio, Yanteen Technology,.Ltd.
-
-2023.1.17 - 解决了文件被占用的问题，但可能会导致加解密速度减慢'''
+(c)2023 Illumination Studio, Yanteen Technology,.Ltd.'''
 import json
 import os
 from AES import *
