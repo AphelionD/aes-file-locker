@@ -1,10 +1,11 @@
-'''AES_file_locker [version 1.1]
+'''AES_file_locker [version 1.2]
 Powered by Python.
 (c)2023 Illumination Studio, Yanteen Technology,.Ltd.'''
 import json
 import os
 from AES import *
 import hashlib
+from argon2 import hash_password
 import random
 from glob import glob
 from shutil import rmtree, move
@@ -94,11 +95,13 @@ def encrypt_dir(dir, target_dir, master_password, ignore_check = False):
     dirs, files = copy_dir(dir)
     files = list(filter(lambda x: x!='__Solver.dll' and x!= '__Status.sti' and os.path.splitext(x)[1]!='.afd', files))
     dirs = list(filter(lambda x: x!=get_relative_dir(target_dir, dir), dirs))
-    with tqdm(range(12), leave=False) as tq:
-        for i in tq: #使用scrypt key derivation算法，迭代一个密码消耗3秒左右
-            master_password = hashlib.scrypt(master_password.encode('utf-8'),salt=b'This is salt',n=1024,r=32,p=32).hex()
+    with tqdm(range(8), leave=False) as tq:
+        tq.set_description('Verifying password')
+        master_password = master_password.encode('utf-8')
+        for i in tq: #使用argon2算法，迭代一个密码消耗3秒左右
+            master_password = hash_password(master_password,b'This is salt',100,2048,16)
     if not os.path.isfile(os.path.join(dir,'__Status.sti')):
-        rand_key = random.randbytes(random.randint(30,60)) + b'===end==='
+        rand_key = random.randbytes(random.randint(60,90)) + b'===end==='
         with open(os.path.join(dir,'__Status.sti'), 'wb') as f:
             f.write(encrypt(master_password, rand_key, b64=False))
     else:
@@ -111,7 +114,7 @@ def encrypt_dir(dir, target_dir, master_password, ignore_check = False):
                 except:
                     print(f'ERROR: Password incorrect for {dir}!!!')
                     return False
-        rand_key = random.randbytes(random.randint(30,60)) + b'===end==='
+        rand_key = random.randbytes(random.randint(60,90)) + b'===end==='
         with open(os.path.join(dir,'__Status.sti'), 'wb') as f:
             f.write(encrypt(master_password, rand_key, b64=False))
     if len(files)==0:
@@ -146,9 +149,11 @@ def decrypt_dir(dir, master_password):
     # if not os.path.isfile(os.path.join(dir,'__Status.sti')): # 不存在状态指示器时，判定为加密。
     #     encrypt_dir(dir, os.path.join(dir, '.__sys'), password)
     # else:
-        with tqdm(range(12), leave=False) as tq:
-            for i in tq: #使用scrypt key derivation算法，迭代一个密码消耗3秒左右
-                master_password = hashlib.scrypt(master_password.encode('utf-8'),salt=b'This is salt',n=1024,r=32,p=32).hex()
+        with tqdm(range(8), leave=False) as tq:
+            tq.set_description('Verifying password')
+            master_password = master_password.encode('utf-8')
+            for i in tq: #使用argon2算法，迭代一个密码消耗3秒左右
+                master_password = hash_password(master_password,b'This is salt',100,2048,16)
         with open(os.path.join(dir,'__Status.sti'), 'rb') as f: #验证密码
             try:
                 rand_key = decrypt(master_password, f.read(), b64=False)
@@ -296,3 +301,4 @@ if __name__=='__main__':
                         break
                     print('\n'*1000)
         print('Successfully %sed. ' %('Lock' if is_encrypted(i) else 'Unlock'))
+os.system('pause')
