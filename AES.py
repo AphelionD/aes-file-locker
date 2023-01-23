@@ -4,11 +4,13 @@ AES-256算法，ECB，PKCS5/7 Padding，sha256 + md5密钥处理，加盐可配�
 from base64 import b64decode, b64encode
 from Crypto.Cipher import AES
 from hashlib import md5, sha256
+from Crypto import Random
 
 
+def get_iv():
+    return Random.new().read(AES.block_size)
 
-
-def encrypt(key: bytes | str, text: bytes | str, salt='This is salt', b64 = True, result_type = str, encoding='utf-8'):
+def encrypt(key: bytes | str, text: bytes | str, salt='This is salt', b64 = True, result_type = str, encoding='utf-8', mode='ECB', iv = None):
     '''key: 自动判断是bytes还是str
 
     text: 自动判断是bytes还是str
@@ -28,7 +30,10 @@ def encrypt(key: bytes | str, text: bytes | str, salt='This is salt', b64 = True
         key = md5(sha256((key + salt).encode(encoding)).hexdigest().encode('ascii')).hexdigest()
     elif isinstance(key, bytes):
         key = md5(sha256(key + salt.encode(encoding)).hexdigest().encode('ascii')).hexdigest()
-    aes = AES.new(key.encode('ascii'), AES.MODE_ECB)  # 初始化加密器
+    if mode=='ECB':
+        aes = AES.new(key.encode('ascii'), AES.MODE_ECB)  # 初始化加密器
+    elif mode =='CBC':
+        aes = AES.new(key.encode('ascii'), AES.MODE_CBC, iv)
     encrypt_aes = aes.encrypt(PKCS_Padding(text))  # 先进行aes加密
     if b64:
         if result_type==str:
@@ -38,7 +43,7 @@ def encrypt(key: bytes | str, text: bytes | str, salt='This is salt', b64 = True
     else:
         return encrypt_aes
 
-def decrypt(key:str, text: bytes | str, salt='This is salt', b64 = True, result_type = str, encoding='utf-8'):
+def decrypt(key:str, text: bytes | str, salt='This is salt', b64 = True, result_type = str, encoding='utf-8', mode='ECB', iv = None):
     '''key: 自动判断是bytes还是str
 
     如果b64为True，自动判断text是bytes还是str。若b64为False，请传入bytes，且返回bytes。'''
@@ -53,9 +58,14 @@ def decrypt(key:str, text: bytes | str, salt='This is salt', b64 = True, result_
         return data[:-data[-1]]
     if isinstance(key, str):
         key = md5(sha256((key + salt).encode(encoding)).hexdigest().encode('ascii')).hexdigest()
+        # key = md5((key + salt).encode(encoding)).hexdigest()
     elif isinstance(key, bytes):
         key = md5(sha256(key + salt.encode(encoding)).hexdigest().encode('ascii')).hexdigest()
-    aes = AES.new(key.encode('ascii'), AES.MODE_ECB)  # 初始化加密器
+        # key = md5(key + salt.encode(encoding)).hexdigest()
+    if mode=='ECB':
+        aes = AES.new(key.encode('ascii'), AES.MODE_ECB)  # 初始化加密器
+    elif mode =='CBC':
+        aes = AES.new(key.encode('ascii'), AES.MODE_CBC, iv)
     if b64:
         if isinstance(text,str):
             base64_decrypted = b64decode(text.encode(encoding=encoding))  # 优先逆向解密base64成bytes
