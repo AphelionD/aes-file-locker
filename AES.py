@@ -1,9 +1,9 @@
 '''
-AES-256算法，ECB，PKCS5/7 Padding，md5密钥处理，加盐可配置，究极版本
+AES-256算法，ECB，PKCS5/7 Padding，sha256 + md5密钥处理，加盐可配置，究极版本
 '''
 from base64 import b64decode, b64encode
 from Crypto.Cipher import AES
-from hashlib import md5
+from hashlib import md5, sha256
 
 
 
@@ -25,9 +25,9 @@ def encrypt(key: bytes | str, text: bytes | str, salt='This is salt', b64 = True
     if isinstance(text, str):
         text = text.encode(encoding)
     if isinstance(key, str):
-        key = md5((key + salt).encode(encoding)).hexdigest()
+        key = md5(sha256((key + salt).encode(encoding)).hexdigest().encode('ascii')).hexdigest()
     elif isinstance(key, bytes):
-        key = md5(key + salt.encode(encoding)).hexdigest()
+        key = md5(sha256(key + salt.encode(encoding)).hexdigest().encode('ascii')).hexdigest()
     aes = AES.new(key.encode('ascii'), AES.MODE_ECB)  # 初始化加密器
     encrypt_aes = aes.encrypt(PKCS_Padding(text))  # 先进行aes加密
     if b64:
@@ -52,9 +52,9 @@ def decrypt(key:str, text: bytes | str, salt='This is salt', b64 = True, result_
     def Strip_PKCS_Padding(data):
         return data[:-data[-1]]
     if isinstance(key, str):
-        key = md5((key + salt).encode(encoding)).hexdigest()
+        key = md5(sha256((key + salt).encode(encoding)).hexdigest().encode('ascii')).hexdigest()
     elif isinstance(key, bytes):
-        key = md5(key + salt.encode(encoding)).hexdigest()
+        key = md5(sha256(key + salt.encode(encoding)).hexdigest().encode('ascii')).hexdigest()
     aes = AES.new(key.encode('ascii'), AES.MODE_ECB)  # 初始化加密器
     if b64:
         if isinstance(text,str):
