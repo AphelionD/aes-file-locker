@@ -106,7 +106,7 @@ def encrypt_dir(dir, master_password, ignore_check = False, config = configurati
     '''ignore_check: whether check password when encrypting
     config: a dictionary, like the `CONFIG_DEFAULT`'''
     def key_derivation(key,t,m,p):
-        with tqdm(range(3), leave=False) as tq:
+        with tqdm(range(3), leave=False,smoothing=0.5) as tq:
             tq.set_description('Verifying password')
             key = key.encode('utf-8')
             for i in tq: #使用argon2算法，迭代一个密码消耗3秒左右
@@ -162,11 +162,12 @@ def encrypt_dir(dir, master_password, ignore_check = False, config = configurati
     salt = os.urandom(10)
     for i in range(len(files)): # 进行目录解释，为每一个文件指定新的独一无二的文件名
         solver[files[i]]= (md5(bytes(str(i), encoding='ascii') + salt)+'.afd', os.urandom(16))
-    for i in files:
-        with open(os.path.join(dir, i), 'rb') as f:
-            content = encrypt(rand_key, f.read(), b64=False, mode='CBC', iv=solver[i][1])
-        with open(os.path.join(target_dir, solver[i][0]), 'wb') as f:
-            f.write(content)
+    with tqdm(files,delay=0.5) as tq:
+        for i in tq:
+            with open(os.path.join(dir, i), 'rb') as f:
+                content = encrypt(rand_key, f.read(), b64=False, mode='CBC', iv=solver[i][1])
+            with open(os.path.join(target_dir, solver[i][0]), 'wb') as f:
+                f.write(content)
     for i in solver.keys():
         solver[i]=(solver[i][0],b64encode(solver[i][1]).decode('ascii'))
     solver = json.dumps([solver,dirs], ensure_ascii=False, indent=4) # 序列化解释器（与dirs列表打包）
