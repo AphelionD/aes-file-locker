@@ -106,7 +106,7 @@ def encrypt_dir(dir, master_password, ignore_check = False, config = configurati
     '''ignore_check: whether check password when encrypting
     config: a dictionary, like the `CONFIG_DEFAULT`'''
     def key_derivation(key,t,m,p):
-        with tqdm(range(3), leave=False,smoothing=0.5) as tq:
+        with tqdm(range(3), leave=False,smoothing=0.8) as tq:
             tq.set_description('Verifying password')
             key = key.encode('utf-8')
             for i in tq: #使用argon2算法，迭代一个密码消耗3秒左右
@@ -162,7 +162,7 @@ def encrypt_dir(dir, master_password, ignore_check = False, config = configurati
     salt = os.urandom(10)
     for i in range(len(files)): # 进行目录解释，为每一个文件指定新的独一无二的文件名
         solver[files[i]]= (md5(bytes(str(i), encoding='ascii') + salt)+'.afd', os.urandom(16))
-    with tqdm(files,delay=0.5) as tq:
+    with tqdm(files) as tq:
         for i in tq:
             with open(os.path.join(dir, i), 'rb') as f:
                 content = encrypt(rand_key, f.read(), b64=False, mode='CBC', iv=solver[i][1])
@@ -191,7 +191,7 @@ def decrypt_dir(dir, master_password):
             config_len = int.from_bytes(content[-2:], 'big')
             config = json.loads(decrypt('所有侵犯隐私者将受到严惩。', content[-2-config_len:-2], b64=False).decode('utf-8'))
             rand_key = content[:-2-config_len]
-            with tqdm(range(3), leave=False) as tq:
+            with tqdm(range(3), leave=False,smoothing=0.8) as tq:
                 tq.set_description('Verifying password')
                 master_password = master_password.encode('utf-8')
                 for i in tq: #使用argon2算法，迭代一个密码消耗3秒左右
@@ -209,15 +209,16 @@ def decrypt_dir(dir, master_password):
             if not os.path.isdir(os.path.join(dir, i)):
                 os.makedirs(os.path.join(dir, i))
         solver = {v[0]: (k,b64decode(v[1].encode('ascii'))) for k, v in solver.items()} # 将解释器反向
-        for i in glob(os.path.join(os.path.join(dir,'.__sys'), '*.afd')):
-            with open(i, 'rb') as f:
-                try:
-                    content = decrypt(rand_key, f.read(), b64=False, mode='CBC', iv=solver[os.path.basename(i)][1])
-                except:
-                    print(f'WARNING: exception when encrypting: {i}, {solver[os.path.basename(i)][0]}')
-                    continue
-            with open(os.path.join(dir, solver[os.path.basename(i)][0]), 'wb') as f:
-                f.write(content)
+        with tqdm(glob(os.path.join(os.path.join(dir,'.__sys'), '*.afd'))) as tq:
+            for i in tq:
+                with open(i, 'rb') as f:
+                    try:
+                        content = decrypt(rand_key, f.read(), b64=False, mode='CBC', iv=solver[os.path.basename(i)][1])
+                    except:
+                        print(f'WARNING: exception when encrypting: {i}, {solver[os.path.basename(i)][0]}')
+                        continue
+                with open(os.path.join(dir, solver[os.path.basename(i)][0]), 'wb') as f:
+                    f.write(content)
         del content
         # os.remove(os.path.join(dir,'__Status.sti'))
         return True
