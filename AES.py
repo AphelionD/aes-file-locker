@@ -1,11 +1,10 @@
 '''
-AES-256算法，ECB，PKCS5/7 Padding，sha256 + md5密钥处理，加盐可配置，究极版本
+AES-256算法，ECB，PKCS5/7 Padding，sha256 + blake3密钥处理，加盐可配置，究极版本
 '''
 from base64 import b64decode, b64encode
 from Crypto.Cipher import AES
-from hashlib import md5, sha256
+from hashlib import sha256
 from Crypto import Random
-
 
 def get_iv():
     return Random.new().read(AES.block_size)
@@ -27,13 +26,13 @@ def encrypt(key: bytes | str, text: bytes | str, salt='This is salt', b64 = True
     if isinstance(text, str):
         text = text.encode(encoding)
     if isinstance(key, str):
-        key = md5(sha256((key + salt).encode(encoding)).hexdigest().encode('ascii')).hexdigest()
+        key = sha256((key + salt).encode(encoding)).digest()
     elif isinstance(key, bytes):
-        key = md5(sha256(key + salt.encode(encoding)).hexdigest().encode('ascii')).hexdigest()
+        key = sha256(key + salt.encode(encoding)).digest()
     if mode=='ECB':
-        aes = AES.new(key.encode('ascii'), AES.MODE_ECB)  # 初始化加密器
+        aes = AES.new(key, AES.MODE_ECB)  # 初始化加密器
     elif mode =='CBC':
-        aes = AES.new(key.encode('ascii'), AES.MODE_CBC, iv)
+        aes = AES.new(key, AES.MODE_CBC, iv)
     encrypt_aes = aes.encrypt(PKCS_Padding(text))  # 先进行aes加密
     if b64:
         if result_type==str:
@@ -57,15 +56,15 @@ def decrypt(key:str, text: bytes | str, salt='This is salt', b64 = True, result_
     def Strip_PKCS_Padding(data):
         return data[:-data[-1]]
     if isinstance(key, str):
-        key = md5(sha256((key + salt).encode(encoding)).hexdigest().encode('ascii')).hexdigest()
-        # key = md5((key + salt).encode(encoding)).hexdigest()
+        key = sha256((key + salt).encode(encoding)).digest()
+        # key = blake3((key + salt).encode(encoding)).hexdigest()
     elif isinstance(key, bytes):
-        key = md5(sha256(key + salt.encode(encoding)).hexdigest().encode('ascii')).hexdigest()
-        # key = md5(key + salt.encode(encoding)).hexdigest()
+        key = sha256(key + salt.encode(encoding)).digest()
+        # key = blake3(key + salt.encode(encoding)).hexdigest()
     if mode=='ECB':
-        aes = AES.new(key.encode('ascii'), AES.MODE_ECB)  # 初始化加密器
+        aes = AES.new(key, AES.MODE_ECB)  # 初始化加密器
     elif mode =='CBC':
-        aes = AES.new(key.encode('ascii'), AES.MODE_CBC, iv)
+        aes = AES.new(key, AES.MODE_CBC, iv)
     if b64:
         if isinstance(text,str):
             base64_decrypted = b64decode(text.encode(encoding=encoding))  # 优先逆向解密base64成bytes
@@ -84,14 +83,14 @@ if __name__=='__main__':
     # with open(r"C:\Users\jenso\Desktop\73+74~75+79~81 (1).mp4", 'wb') as f:
     #     f.write(content)
     pass
-    a = '''hello
+    a = '''
     梁山附近有个当保正的晁盖，得知奸臣蔡京的女婿梁中书派杨志押送“生辰纲”上京，便由吴用定计，约集了其他七名好汉劫了生辰纲，投奔梁山。杨志丢了“生辰纲”，不能回去交差，就与鲁智深会合，占了二龙山。
     郓城有个好汉叫宋江，他的老婆与人私通。在探知宋江与梁山强盗有来往后，她百般要挟。宋江一怒之下，杀了阎婆惜，逃奔小旋风柴进庄上，结识了武松。武松与宋江分手后，在景阳冈上打死猛虎，成了英雄，之后去阳谷县当了一名武官，碰巧遇见失散多年的胞兄武大。可是他的嫂子潘金莲却不守妇道，趁武松外出，私通西门庆，毒死武大。武松归后察知其情，杀了二人，给兄长报了仇。事后他被发配孟州，结识施恩，醉打蒋门神，怒杀张都监全家，也转去投二龙山安身。'''
     b = encrypt('password', a)
     print(decrypt('password', b))
 # import base64
 # from Crypto.Cipher import AES
-# from hashlib import sha1, md5
+# from hashlib import sha1, blake3
 # import random
 
 # '''
@@ -109,12 +108,12 @@ if __name__=='__main__':
 
 # 加密方法
 # def encrypt(key:str, text: bytes, salt='This is salt', codec='utf-8'):
-#     key = md5((key + salt).encode(codec)).hexdigest()
+#     key = blake3((key + salt).encode(codec)).hexdigest()
 #     aes = AES.new(key.encode('ascii'), AES.MODE_ECB)  # 初始化加密器
 #     return aes.encrypt(ZeroPadding(text))  # 先进行aes加密
 # # 解密方法
 # def decrypt(key:str, text: bytes, salt='This is salt', codec='utf-8'):
-#     key = md5((key + salt).encode(codec)).hexdigest()
+#     key = blake3((key + salt).encode(codec)).hexdigest()
 #     aes = AES.new(key.encode('ascii'), AES.MODE_ECB)  # 初始化加密器
 #     return StripZeroPadding(aes.decrypt(text))
 # def generate_akc(file, length=4096):
