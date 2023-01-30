@@ -1,4 +1,4 @@
-'''AES_file_locker [version 1.3]
+'''AES_file_locker [version 1.4]
 Powered by Python.
 (c)2023 Illumination Studio, Yanteen Technology,.Ltd.'''
 import json
@@ -6,6 +6,8 @@ import os
 from AES import AES
 import hashlib
 from argon2 import hash_password
+# https://pypi.org/project/argon2-cffi/
+# pip install argon2-cffi
 import random
 from glob import glob
 from shutil import rmtree, move
@@ -278,6 +280,80 @@ if __name__ == '__main__':
         os.system('pause')
         exit()
 
+    from tkinter import *
+    from tkinter import messagebox
+
+    class GUI():
+        def __init__(self, line1='Username', line2='Password', title='Log in', command_OK=None, change_pass=False, command_change=None):
+            self.user_name = None
+            self.password = None
+            GUI.root = Tk()
+            GUI.root.title(title)
+            self.info = StringVar()
+            if line1 != None:
+                GUI.v1 = StringVar()
+                GUI.l1_content = StringVar()
+                GUI.l1_content.set(line1)
+                GUI.l1 = Label(GUI.root, textvariable=GUI.l1_content)
+                GUI.l1.grid(row=0, column=0)  # label：文本
+            GUI.l2_content = StringVar()
+            GUI.l2_content.set(line2)
+            GUI.l2 = Label(GUI.root, textvariable=GUI.l2_content)  # grid：表格结构
+            GUI.l2.grid(row=1, column=0)
+            GUI.v2 = StringVar()
+            if not line1 == None:
+                GUI.e1 = Entry(GUI.root, textvariable=GUI.v1,show='*').grid(row=0, column=1, padx=10, pady=5)  # entry：输入框
+            GUI.e2 = Entry(GUI.root, textvariable=GUI.v2, show='*').grid(row=1,column=1, padx=10, pady=5)  # 想显示什么就show=
+            Label(GUI.root)
+
+            def command():
+
+                if hasattr(GUI, 'v1'):
+                    if GUI.v1.get() != '' and GUI.v2.get() != '':
+                        self.user_name = GUI.v1.get()
+                        self.password = GUI.v2.get()
+                        if callable(command_OK):
+                            command_OK()
+                    else:
+                        messagebox.showinfo(
+                            'WARNING', 'Please fill in all the blanks')
+                else:
+                    if GUI.v2.get() != '':
+                        self.password = GUI.v2.get()
+                        if callable(command_OK):
+                            command_OK()
+                    else:
+                        messagebox.showinfo(
+                            'WARNING', 'Please fill in all the blanks')
+
+            GUI.b1 = Button(GUI.root, text='submit', width=10, command=command)
+            GUI.b1.grid(row=4, column=0, sticky=W, padx=10, pady=10)
+            GUI.b2 = Button(GUI.root, text='exit',width=10, command=GUI.root.quit)
+            GUI.b2.grid(row=4, column=1, sticky=N, padx=10, pady=10)
+            if change_pass:
+                GUI.b3 = Button(GUI.root, text='change password', width=20, command=command_change)
+                GUI.b3.grid(row=4, column=2, sticky=E, padx=20, pady=10)
+
+            l3 = Label(GUI.root, textvariable=self.info)
+            l3.grid(row=3, column=0, sticky=W)
+
+        def set_l1(self, value):
+            GUI.l1_content.set(value)
+
+        def set_l2(self, value):
+            GUI.l2_content.set(value)
+        def message(self,message):
+            messagebox.showinfo('info', message=message)
+        def loop(self):
+            GUI.root.mainloop()
+
+        def destroy(self):
+            '''All widgets will be removed!!'''
+            GUI.root.destroy()
+
+        def __call__(self):
+            return self.status
+
     for i in dirs:
         print(f'Current directory: {i}')
         check_move = all_files_can_be_moved_by_shutil(i)
@@ -286,51 +362,54 @@ if __name__ == '__main__':
                 print(f'ERROR: file {t} can not be accessed')
             continue
         if is_encrypted(i):
-            password = input("Input password: ")
-            print('\n'*2000)
-            while not decrypt_dir(i, password):
-                password = input("Input password: ")
-                print('\n'*2000)
+            def excecute1():
+                if not decrypt_dir(i, a.password):
+                    a.info.set('Password Incorrect')
+                else:
+                    a.message('Decryption successful')
+                    a.destroy()
+            a = GUI(None, title='Log in to decrypt %s' %
+                    i, command_OK=excecute1)
+            a.loop()
+
         else:
             if not os.path.isfile(os.path.join(i, '__Status.sti')):
-                password = input("Set password: ")
-                check = input('Confirm your password: ')
-                if check != password:
-                    print('You inputed diffrent passwords. Failed to lock the folder. ')
-                    os.system("pause")
-                    exit()
-                print('\n'*2000)
-                encrypt_dir(i,  password)
-            else:
-                password = input("Input password: ")
-                print('\n'*2000)
-                if password == 'Change':
-                    password = input("Set password: ")
-                    check = input('Confirm your password: ')
-                    print('\n'*2000)
-                    if check != password:
-                        print(
+                def execute2():
+                    if a.user_name != a.password:
+                        a.info.set(
                             'You inputed diffrent passwords. Failed to lock the folder. ')
-                        os.system("pause")
-                        exit()
-                    encrypt_dir(i,  password, True)
-                    print('Successfully %sed. ' %
-                          ('Lock' if is_encrypted(i) else 'Unlock'))
-                    continue
-                while not encrypt_dir(i,  password):
-                    password = input("Input password: ")
-                    if password == 'Change':
-                        password = input("Set password: ")
-                        check = input('Confirm your password: ')
-                        print('\n'*2000)
-                        if check != password:
-                            print(
+                    else:
+                        encrypt_dir(i,  a.password)
+                        a.message('Encryption successful')
+                        a.destroy()
+                a = GUI("Set password: ", 'Confirm your password: ',
+                        title='Log in to encrypt %s' % i, command_OK=execute2)
+                a.loop()
+
+            else:
+                def execute4():
+                    global a, b
+                    a.destroy()
+
+                    def execute5():
+                        if b.user_name != b.password:
+                            b.info.set(
                                 'You inputed diffrent passwords. Failed to lock the folder. ')
-                            os.system("pause")
-                            exit()
-                        encrypt_dir(i,  password, True)
-                        break
-                    print('\n'*2000)
-        print('Successfully %sed. ' %
-              ('Lock' if is_encrypted(i) else 'Unlock'))
-os.system('pause')
+                        else:
+                            encrypt_dir(i,  b.password, ignore_check=True)
+                            b.message('Encryption successful')
+                            b.destroy()
+                    b = GUI("Set password: ", 'Confirm your password: ',
+                            title='Log in to encrypt %s' % i, command_OK=execute5)
+                    b.loop()
+
+                def execute3():
+                    if not encrypt_dir(i,  a.password):
+                        a.info.set(
+                            'Password incorrect! Failed to lock the folder. ')
+                    else:
+                        a.message('Encryption successful')
+                        a.destroy()
+                a = GUI(None, title='log in to encrypt %s' %
+                        i, command_OK=execute3, change_pass=True, command_change=execute4)
+                a.loop()
