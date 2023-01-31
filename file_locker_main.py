@@ -287,69 +287,69 @@ if __name__ == '__main__':
         def __init__(self, line1='Username', line2='Password', title='Log in', command_OK=None, change_pass=False, command_change=None):
             self.user_name = None
             self.password = None
-            GUI.root = Tk()
-            GUI.root.title(title)
+            self.root = Tk()
+            self.root.title(title)
             self.info = StringVar()
             if line1 != None:
-                GUI.v1 = StringVar()
-                GUI.l1_content = StringVar()
-                GUI.l1_content.set(line1)
-                GUI.l1 = Label(GUI.root, textvariable=GUI.l1_content)
-                GUI.l1.grid(row=0, column=0)  # label：文本
-            GUI.l2_content = StringVar()
-            GUI.l2_content.set(line2)
-            GUI.l2 = Label(GUI.root, textvariable=GUI.l2_content)  # grid：表格结构
-            GUI.l2.grid(row=1, column=0)
-            GUI.v2 = StringVar()
+                self.v1 = StringVar()
+                self.l1_content = StringVar()
+                self.l1_content.set(line1)
+                self.l1 = Label(self.root, textvariable=self.l1_content)
+                self.l1.grid(row=0, column=0, sticky=W)  # label：文本
+            self.l2_content = StringVar()
+            self.l2_content.set(line2)
+            self.l2 = Label(self.root, textvariable=self.l2_content)  # grid：表格结构
+            self.l2.grid(row=1, column=0, sticky=W)
+            self.v2 = StringVar()
             if not line1 == None:
-                GUI.e1 = Entry(GUI.root, textvariable=GUI.v1,show='*').grid(row=0, column=1, padx=10, pady=5)  # entry：输入框
-            GUI.e2 = Entry(GUI.root, textvariable=GUI.v2, show='*').grid(row=1,column=1, padx=10, pady=5)  # 想显示什么就show=
-            Label(GUI.root)
+                self.e1 = Entry(self.root, textvariable=self.v1,show='*').grid(row=0, column=1, padx=10, pady=5)  # entry：输入框
+            self.e2 = Entry(self.root, textvariable=self.v2, show='*').grid(row=1,column=1, padx=10, pady=5)  # 想显示什么就show=
 
-            def command():
+            def command(*args):
 
-                if hasattr(GUI, 'v1'):
-                    if GUI.v1.get() != '' and GUI.v2.get() != '':
-                        self.user_name = GUI.v1.get()
-                        self.password = GUI.v2.get()
+                if hasattr(self, 'v1'):
+                    if self.v1.get() != '' and self.v2.get() != '':
+                        self.user_name = self.v1.get()
+                        self.password = self.v2.get()
                         if callable(command_OK):
                             command_OK()
                     else:
                         messagebox.showinfo(
                             'WARNING', 'Please fill in all the blanks')
                 else:
-                    if GUI.v2.get() != '':
-                        self.password = GUI.v2.get()
+                    if self.v2.get() != '':
+                        self.password = self.v2.get()
                         if callable(command_OK):
                             command_OK()
                     else:
                         messagebox.showinfo(
                             'WARNING', 'Please fill in all the blanks')
 
-            GUI.b1 = Button(GUI.root, text='submit', width=10, command=command)
-            GUI.b1.grid(row=4, column=0, sticky=W, padx=10, pady=10)
-            GUI.b2 = Button(GUI.root, text='exit',width=10, command=GUI.root.quit)
-            GUI.b2.grid(row=4, column=1, sticky=N, padx=10, pady=10)
+            self.b1 = Button(self.root, text='OK', width=8, command=command)
+            self.b1.grid(row=4, column=0, sticky=W, padx=8, pady=10)
+            self.b2 = Button(self.root, text='exit',width=10, command=self.root.quit)
+            self.b2.grid(row=4, column=1, sticky=N, padx=10, pady=10)
             if change_pass:
-                GUI.b3 = Button(GUI.root, text='change password', width=20, command=command_change)
-                GUI.b3.grid(row=4, column=2, sticky=E, padx=20, pady=10)
+                self.b3 = Button(self.root, text='change password', width=20, command=command_change)
+                self.b3.grid(row=4, column=2, sticky=E, padx=20, pady=10)
 
-            l3 = Label(GUI.root, textvariable=self.info)
-            l3.grid(row=3, column=0, sticky=W)
+            l3 = Label(self.root, textvariable=self.info)
+            l3.grid(row=3, column=0, columnspan=3,sticky=W)
+            self.root.bind("<Return>", command)
 
         def set_l1(self, value):
-            GUI.l1_content.set(value)
+            self.l1_content.set(value)
 
         def set_l2(self, value):
-            GUI.l2_content.set(value)
+            self.l2_content.set(value)
         def message(self,message):
             messagebox.showinfo('info', message=message)
         def loop(self):
-            GUI.root.mainloop()
+            self.root.mainloop()
 
         def destroy(self):
             '''All widgets will be removed!!'''
-            GUI.root.destroy()
+            self.root.destroy()
 
         def __call__(self):
             return self.status
@@ -369,7 +369,8 @@ if __name__ == '__main__':
                     a.message('Decryption successful')
                     a.destroy()
             a = GUI(None, title='Log in to decrypt %s' %
-                    i, command_OK=excecute1)
+                    os.path.split(i)[1], command_OK=excecute1)
+            a.info.set(i)
             a.loop()
 
         else:
@@ -383,7 +384,8 @@ if __name__ == '__main__':
                         a.message('Encryption successful')
                         a.destroy()
                 a = GUI("Set password: ", 'Confirm your password: ',
-                        title='Log in to encrypt %s' % i, command_OK=execute2)
+                        title='Log in to encrypt %s' % os.path.split(i)[1], command_OK=execute2)
+                a.info.set(i)
                 a.loop()
 
             else:
@@ -400,7 +402,8 @@ if __name__ == '__main__':
                             b.message('Encryption successful')
                             b.destroy()
                     b = GUI("Set password: ", 'Confirm your password: ',
-                            title='Log in to encrypt %s' % i, command_OK=execute5)
+                            title='Log in to encrypt %s' % os.path.split(i)[1], command_OK=execute5)
+                    b.info.set(i)
                     b.loop()
 
                 def execute3():
@@ -411,5 +414,6 @@ if __name__ == '__main__':
                         a.message('Encryption successful')
                         a.destroy()
                 a = GUI(None, title='log in to encrypt %s' %
-                        i, command_OK=execute3, change_pass=True, command_change=execute4)
+                        os.path.split(i)[1], command_OK=execute3, change_pass=True, command_change=execute4)
+                a.info.set(i)
                 a.loop()
