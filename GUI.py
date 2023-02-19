@@ -1,5 +1,5 @@
-from File_locker import *
 from tkinter import *
+from tkinter import messagebox
 class GUI():
     def __init__(self, line1='Username', line2='Password', title='Log in', command_OK=None, change_pass=False, command_change=None):
         self.user_name = None
