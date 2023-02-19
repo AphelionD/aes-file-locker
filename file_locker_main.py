@@ -1,4 +1,4 @@
-'''AES_file_locker [version 1.4.5]
+'''AES_file_locker [version 1.4.6]
 Powered by Python.
 (c)2023 Illumination Studio, Yanteen Technology,.Ltd.'''
 import json
@@ -13,6 +13,8 @@ from glob import glob
 from shutil import rmtree, move
 from tqdm import tqdm
 from base64 import b64decode, b64encode
+from tkinter import *
+from tkinter import messagebox, ttk
 CONFIG_DEFAULT = {
     'time_cost': 1,
     'memory_cost': 2097152,
@@ -112,15 +114,28 @@ def md5(fname,  is_file_dir=None, encoding='utf-8'):
         return hash_md5.hexdigest()
 
 
-def encrypt_dir(dir, master_password, ignore_check=False, config=configuration):
+def encrypt_dir(dir, master_password, ignore_check=False, config=configuration, instance = None):
     '''ignore_check: whether check password when encrypting
     config: a dictionary, like the `CONFIG_DEFAULT`'''
     def key_derivation(key, t, m, p):
         with tqdm(range(3), leave=False, smoothing=0.8) as tq:
             tq.set_description('Verifying password')
             key = key.encode('utf-8')
+            if instance!=None:
+                assert isinstance(instance,GUI), "param 'instance' must be a GUI instance"
+                instance.info.set('Verifying password')
+                instance.pb = ttk.Progressbar(instance.root, length=instance.root.winfo_width())
+                instance.pb['maximum'] = 3
+                instance.pb['value'] = 0
+                instance.pb.grid(row=4, column=0, columnspan=3)
+                instance.root.update()
             for i in tq:  # 使用argon2算法，迭代一个密码消耗3秒左右
                 key = hash_password(key, b'This is salt', t, m, p)
+                if instance != None:
+                    instance.pb['value']=i+1
+                    instance.root.update()
+            if instance!=None:
+                instance.pb.grid_forget()
         return key
     config_input = config
     target_dir = os.path.join(dir, '.__sys')
@@ -189,12 +204,27 @@ def encrypt_dir(dir, master_password, ignore_check=False, config=configuration):
             md5(bytes(str(i), encoding='ascii') + salt)+'.afd', os.urandom(16))
     aes.key = rand_key
     aes.mode = 'CBC'
-    with tqdm(files) as tq:
-        for i in tq:
+    with tqdm(enumerate(files)) as tq:
+        if instance!=None:
+            assert isinstance(instance, GUI), "param 'instance' must be a GUI instance"
+            instance.info.set('encrypting...')
+            instance.pb = ttk.Progressbar(instance.root, length=instance.root.winfo_width())
+            instance.pb['value'] = 0
+            instance.pb['maximum'] = len(files)
+            instance.pb.grid(row=4, column=0, columnspan=3)
+            instance.pb
+            instance.root.update()
+        for index,i in tq:
             with open(os.path.join(dir, i), 'rb') as f:
                 content = aes.encrypt(f.read(), iv=solver[i][1])
             with open(os.path.join(target_dir, solver[i][0]), 'wb') as f:
                 f.write(content)
+            if instance!=None:
+                instance.pb['value']=index+1
+                instance.root.update()
+        if instance!=None:
+            instance.pb.grid_forget()
+            instance.info.set('completed')
     for i in solver.keys():
         solver[i] = (solver[i][0], b64encode(solver[i][1]).decode('ascii'))
     solver = json.dumps([solver, dirs], ensure_ascii=False,
@@ -212,7 +242,7 @@ def encrypt_dir(dir, master_password, ignore_check=False, config=configuration):
     return True
 
 
-def decrypt_dir(dir, master_password):
+def decrypt_dir(dir, master_password, instance=None):
     aes = AES('所有侵犯隐私者将受到严惩。', 'ECB')
     aes.b64 = False
     with open(os.path.join(dir, '__Status.sti'), 'rb') as f:  # 验证密码
@@ -224,9 +254,23 @@ def decrypt_dir(dir, master_password):
         with tqdm(range(3), leave=False, smoothing=0.8) as tq:
             tq.set_description('Verifying password')
             master_password = master_password.encode('utf-8')
+            if instance!=None:
+                assert isinstance(instance,GUI), "param 'instance' must be a GUI instance"
+                instance.info.set('Verifying password')
+                instance.pb = ttk.Progressbar(instance.root, length=instance.root.winfo_width())
+                instance.pb['maximum'] = 3
+                instance.pb['value'] = 0
+                instance.pb.grid(row=4, column=0, columnspan=3)
+                instance.root.update()
             for i in tq:  # 使用argon2算法，迭代一个密码消耗3秒左右
                 master_password = hash_password(
                     master_password, b'This is salt', config['time_cost'], config['memory_cost'], config['parallelism'])
+                if instance != None:
+                    instance.pb['value']=i+1
+                    instance.root.update()
+            if instance!=None:
+                instance.pb.grid_forget()
+                instance.root.update()
         try:
             aes.key = master_password
             rand_key = aes.decrypt(rand_key)
@@ -244,18 +288,36 @@ def decrypt_dir(dir, master_password):
     solver = {v[0]: (k, b64decode(v[1].encode('ascii')))
               for k, v in solver.items()}  # 将解释器反向
     aes.mode = 'CBC'
-    with tqdm(glob(os.path.join(os.path.join(dir, '.__sys'), '*.afd'))) as tq:
-        for i in tq:
+    with tqdm(enumerate(len_files:=glob(os.path.join(os.path.join(dir, '.__sys'), '*.afd')))) as tq:
+        if instance!= None:
+            instance.pb = ttk.Progressbar(instance.root, length=instance.root.winfo_width())
+            instance.pb['maximum'] = len(len_files)
+            del len_files
+            instance.pb['value'] = 0
+            instance.pb.grid(row=4, column=0, columnspan=3)
+            instance.info.set('decrypting...')
+            instance.root.update()
+        warn_msg = ''
+        for index,i in tq:
             with open(i, 'rb') as f:
                 try:
-                    content = aes.decrypt(
-                        f.read(), iv=solver[os.path.basename(i)][1])
+                    content = aes.decrypt(f.read(), iv=solver[os.path.basename(i)][1])
                 except:
-                    print(
-                        f'WARNING: exception when encrypting: {i}, {solver[os.path.basename(i)][0]}')
+                    warn_msg += f'WARNING: exception when encrypting: {i}, {solver[os.path.basename(i)][0]}\n'
+                    print(f'WARNING: exception when encrypting: {i}, {solver[os.path.basename(i)][0]}')
                     continue
             with open(os.path.join(dir, solver[os.path.basename(i)][0]), 'wb') as f:
                 f.write(content)
+            if instance!= None:
+                instance.pb['value'] = index+1
+                instance.root.update()
+        if instance!= None:
+            instance.pb.grid_forget()
+            if len(warn_msg)!=0:
+                instance.info.set(warn_msg)
+            else:
+                instance.info.set('completed')
+            instance.root.update()
     del content
     # os.remove(os.path.join(dir,'__Status.sti'))
     return True
@@ -280,8 +342,7 @@ if __name__ == '__main__':
         os.system('pause')
         exit()
 
-    from tkinter import *
-    from tkinter import messagebox
+
 
     class GUI():
         def __init__(self, line1='Username', line2='Password', title='Log in', command_OK=None, change_pass=False, command_change=None):
@@ -354,15 +415,14 @@ if __name__ == '__main__':
             def exec_command_change():
                 command_change(*self.change_pass_command_args, **self.change_pass_command_kwargs)
             self.b1 = Button(self.root, text='OK', width=8, command=command)
-            self.b1.grid(row=5, column=0, sticky=W, padx=8, pady=10)
+            self.b1.grid(row=6, column=0, sticky=W, padx=8, pady=10)
             self.b2 = Button(self.root, text='exit', width=10, command=self.root.destroy)
-            self.b2.grid(row=5, column=1, sticky=N, padx=10, pady=10)
+            self.b2.grid(row=6, column=1, sticky=N, padx=10, pady=10)
             if change_pass:
                 self.b3 = Button(self.root, text='change password', width=20, command=exec_command_change)
-                self.b3.grid(row=5, column=2, sticky=E, padx=20, pady=10)
-
-            l3 = Label(self.root, textvariable=self.info)
-            l3.grid(row=2, column=0, columnspan=3, sticky=W)
+                self.b3.grid(row=6, column=2, sticky=E, padx=20, pady=10)
+            self.l3 = Label(self.root, textvariable=self.info)
+            self.l3.grid(row=2, column=0, columnspan=3, sticky=W)
             self.root.bind("<Return>", command)
             self.OKargs = []
             self.OKkwargs = {}
@@ -402,7 +462,7 @@ if __name__ == '__main__':
             continue
         if is_encrypted(i):  # 如果处于加密状态
             def excecute1():
-                if not decrypt_dir(i, a.password):
+                if not decrypt_dir(i, a.password, instance=a):
                     a.info.set('Password Incorrect')
                 else:
                     a.message('Decryption successful')
@@ -419,7 +479,7 @@ if __name__ == '__main__':
                         a.info.set(
                             'You inputed diffrent passwords. Failed to lock the folder. ')
                     else:
-                        encrypt_dir(i,  a.password)
+                        encrypt_dir(i,  a.password, instance=a)
                         a.message('Encryption successful')
                         a.destroy()
                 a = GUI("Set password: ", 'Confirm your password: ',
@@ -439,7 +499,7 @@ if __name__ == '__main__':
                             b.info.set(
                                 'You inputed diffrent passwords. Failed to lock the folder. ')
                         else:
-                            encrypt_dir(i,  b.password, ignore_check=True)
+                            encrypt_dir(i,  b.password, ignore_check=True, instance=b)
                             b.message('Encryption successful')
                             b.destroy()
                     b = GUI("Set password: ", 'Confirm your password: ',
@@ -449,7 +509,7 @@ if __name__ == '__main__':
 
                 def execute3():
                     '''加密时，若点OK运行的函数'''
-                    if not encrypt_dir(i,  a.password):
+                    if not encrypt_dir(i,  a.password, instance=a):
                         a.info.set(
                             'Password incorrect! Failed to lock the folder. ')
                     else:
