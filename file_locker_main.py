@@ -1,4 +1,4 @@
-'''AES_file_locker [version 1.4.6]
+'''AES_file_locker [version 1.5.0]
 Powered by Python.
 (c)2023 Illumination Studio, Yanteen Technology,.Ltd.'''
 from AES import AES
@@ -16,6 +16,9 @@ from shutil import rmtree, move
 from tqdm import tqdm
 from base64 import b64decode, b64encode
 from tkinter import ttk
+from win32file import CreateFile, SetFileTime, GetFileTime, CloseHandle
+from win32file import GENERIC_READ, GENERIC_WRITE, OPEN_EXISTING
+from pywintypes import Time  # 可以忽视这个 Time 报错（运行程序还是没问题的）
 CONFIG_DEFAULT = {
     'time_cost': 1,
     'memory_cost': 2097152,
@@ -70,12 +73,8 @@ def is_encrypted(dir):
 def get_relative_dir(a, b):
     '''获取a相对于b的路径.
     \n例如，返回：存志群里的音频资料\音标听力\光盘1\9. 巩固练习\巩固练习 01.mp3'''
-    tinyword = ''
-    for i in range(len(a)):
-        tinyword = a[:i+1]
-        if tinyword == b:
-            del tinyword
-            return a[i+2:]
+    assert isinstance(a,str) and isinstance(b,str), "param 'a' and 'b' must be string"
+    return a.replace(b,'').strip('\\') #这种方式也许在别的操作系统上面会出现问题
 
 
 def copy_dir(path):
@@ -112,15 +111,40 @@ def md5(fname,  is_file_dir=None, encoding='utf-8'):
             hash_md5.update(i)
         return hash_md5.hexdigest()
 
+def modifyFileTime(filePath, createTime=None, modifyTime=None, accessTime=None):
+    """
+    用来修改任意文件的相关时间属性，传入unix时间戳
+    :param filePath: 文件路径名
+    :param createTime: 创建时间
+    :param modifyTime: 修改时间
+    :param accessTime: 访问时间
+    """
+    fh = CreateFile(filePath, GENERIC_READ | GENERIC_WRITE, 0, None, OPEN_EXISTING, 0, 0)
+    createTimes, accessTimes, modifyTimes = GetFileTime(fh)
+    if createTime != None:
+        createTimes = Time(createTime)
+    if accessTimes != None:
+        accessTimes = Time(accessTime)
+    if modifyTime != None:
+        modifyTimes = Time(modifyTime)
+    SetFileTime(fh, createTimes, accessTimes, modifyTimes)
+    CloseHandle(fh)
+
+def getFileTime(filename):
+    '''返回：（创建时间，修改时间，访问时间）'''
+    assert os.path.isfile(filename), "File %s not found" % filename
+    return (os.path.getctime(filename), os.path.getmtime(filename), os.path.getatime(filename))
 
 def encrypt_dir(dir, master_password, ignore_check=False, config=configuration, instance = None):
-    '''ignore_check: whether check password when encrypting
-    config: a dictionary, like the `CONFIG_DEFAULT`'''
+    ''':param ignore_check: whether check password when encrypting
+    :param config: a dictionary, like the `CONFIG_DEFAULT`
+    :param instance: a GUI instance, for handling progressbar and other GUI interactions'''
     def key_derivation(key, t, m, p):
-        with tqdm(range(3), leave=False, smoothing=0.8) as tq:
+        '''使用argon2，传入配置参数'''
+        with tqdm(range(3), leave=False, smoothing=0.8) as tq: # 进度条
             tq.set_description('Verifying password')
             key = key.encode('utf-8')
-            if instance!=None:
+            if instance!=None: #对GUI实例进行进度条更新
                 assert isinstance(instance,GUI), "param 'instance' must be a GUI instance"
                 instance.info.set('Verifying password')
                 instance.pb = ttk.Progressbar(instance.root, length=instance.root.winfo_width())
@@ -137,22 +161,23 @@ def encrypt_dir(dir, master_password, ignore_check=False, config=configuration, 
                 instance.pb.grid_forget()
         return key
     config_input = config
-    target_dir = os.path.join(dir, '.__sys')
-    dirs, files = copy_dir(dir)
+    target_dir = os.path.join(dir, '.__sys') # 目标路径
+    dirs, files = copy_dir(dir) # 克隆文件结构
     files = list(filter(lambda x: x != '__Solver.dll' and x !=
-                 '__Status.sti' and os.path.splitext(x)[1] != '.afd', files))
+                 '__Status.sti' and os.path.splitext(x)[1] != '.afd', files)) # 筛选所有需要加密的文件和文件夹
     dirs = list(filter(lambda x: x != get_relative_dir(target_dir, dir), dirs))
-    aes = AES('所有侵犯隐私者将受到严惩。', 'ECB')
+    aes = AES('所有侵犯隐私者将受到严惩。', 'ECB') # 创建AES实例
     aes.b64 = False
     if not os.path.isfile(os.path.join(dir, '__Status.sti')) or ignore_check:
+        # 如果是第一次加密或者需要覆盖原本的密码，`ignore_check` 主要是为了防止因为输错密码而导致所有文件被加密无法找回
         stretched_key = key_derivation(
             master_password, config['time_cost'], config['memory_cost'], config['parallelism'])
         rand_key = os.urandom(random.randint(60, 90)) + b'===end==='
-        config_bytes = aes.encrypt(json.dumps(config).encode('utf-8'))
+        config_bytes = aes.encrypt(json.dumps(config).encode('utf-8')) # 加密argon2配置参数，使其能隐藏在__satus.sti文件里面而不凸显出来
         config_bytes = config_bytes + int.to_bytes(len(config_bytes), 2, 'big')
         aes.key = stretched_key
         with open(os.path.join(dir, '__Status.sti'), 'wb') as f:
-            f.write(aes.encrypt(rand_key)+config_bytes)
+            f.write(aes.encrypt(rand_key)+config_bytes) # __Status.sti 结构：加密后的rand_key+加密后的config_bytes
     else:
         with open(os.path.join(dir, '__Status.sti'), 'rb') as f:  # 先验证密码
             content = f.read()
@@ -162,8 +187,9 @@ def encrypt_dir(dir, master_password, ignore_check=False, config=configuration, 
             rand_key = content[:-2-config_len]
             stretched_key = key_derivation(
                 master_password, config['time_cost'], config['memory_cost'], config['parallelism'])
+            # 获得配置参数
             aes.key = stretched_key
-            try:
+            try: # 验证密码
                 rand_key = aes.decrypt(rand_key)
                 if rand_key[-9:] != b'===end===':
                     raise Exception
@@ -171,7 +197,7 @@ def encrypt_dir(dir, master_password, ignore_check=False, config=configuration, 
                 print(f'ERROR: Password incorrect for {dir}!!!')
                 return False
             aes.key = '所有侵犯隐私者将受到严惩。'
-            if config != config_input:
+            if config != config_input: # 如果函数传入的配置参数和从__Status.sti文件中提取出来的参数不一致，则使用传入的参数
                 stretched_key = key_derivation(
                     master_password, config_input['time_cost'], config_input['memory_cost'], config_input['parallelism'])
                 config_bytes = aes.encrypt(
@@ -198,13 +224,14 @@ def encrypt_dir(dir, master_password, ignore_check=False, config=configuration, 
             os.remove(i)
     solver = {}  # 初始化目录解释器
     salt = os.urandom(10)
-    for i in range(len(files)):  # 进行目录解释，为每一个文件指定新的独一无二的文件名
-        solver[files[i]] = (
-            md5(bytes(str(i), encoding='ascii') + salt)+'.afd', os.urandom(16))
+    for index, file in enumerate(files): # 进行目录解释，为每一个文件指定新的独一无二的文件名
+        solver[file] = (md5(bytes(str(index), encoding='ascii') + salt)+'.afd', os.urandom(16), getFileTime(os.path.join(dir, file)))
+    # 目录解释器结构：{相对路径文件名: (新的AFD文件名, iv向量，(创建时间，修改时间，访问时间))}
     aes.key = rand_key
     aes.mode = 'CBC'
+    # 设置AES CBC模式
     with tqdm(enumerate(files)) as tq:
-        if instance!=None:
+        if instance!=None: # 进度条
             assert isinstance(instance, GUI), "param 'instance' must be a GUI instance"
             instance.info.set('encrypting...')
             instance.pb = ttk.Progressbar(instance.root, length=instance.root.winfo_width())
@@ -214,6 +241,7 @@ def encrypt_dir(dir, master_password, ignore_check=False, config=configuration, 
             instance.pb
             instance.root.update()
         for index,i in tq:
+            # 加密文件
             with open(os.path.join(dir, i), 'rb') as f:
                 content = aes.encrypt(f.read(), iv=solver[i][1])
             with open(os.path.join(target_dir, solver[i][0]), 'wb') as f:
@@ -225,7 +253,8 @@ def encrypt_dir(dir, master_password, ignore_check=False, config=configuration, 
             instance.pb.grid_forget()
             instance.info.set('completed')
     for i in solver.keys():
-        solver[i] = (solver[i][0], b64encode(solver[i][1]).decode('ascii'))
+        # 由于json不支持传入bytes，因此把iv向量用base64转码（使用ascii）
+        solver[i] = (solver[i][0], b64encode(solver[i][1]).decode('ascii'), solver[i][2])
     solver = json.dumps([solver, dirs], ensure_ascii=False,
                         indent=4)  # 序列化解释器（与dirs列表打包）
     aes.mode = 'ECB'
@@ -284,8 +313,9 @@ def decrypt_dir(dir, master_password, instance=None):
     for i in dirs:  # 创建目录
         if not os.path.isdir(os.path.join(dir, i)):
             os.makedirs(os.path.join(dir, i))
-    solver = {v[0]: (k, b64decode(v[1].encode('ascii')))
+    solver = {v[0]: (k, b64decode(v[1].encode('ascii')), v[2])
               for k, v in solver.items()}  # 将解释器反向
+    # 结构：{AFD文件名: (相对路径文件名, iv向量，(创建时间，修改时间，访问时间))}
     aes.mode = 'CBC'
     with tqdm(enumerate(len_files:=glob(os.path.join(os.path.join(dir, '.__sys'), '*.afd')))) as tq:
         if instance!= None:
@@ -298,15 +328,23 @@ def decrypt_dir(dir, master_password, instance=None):
             instance.root.update()
         warn_msg = ''
         for index,i in tq:
+            get = solver[os.path.basename(i)]
             with open(i, 'rb') as f:
                 try:
-                    content = aes.decrypt(f.read(), iv=solver[os.path.basename(i)][1])
+                    content = aes.decrypt(f.read(), iv=get[1])
                 except:
-                    warn_msg += f'WARNING: exception when encrypting: {i}, {solver[os.path.basename(i)][0]}\n'
-                    print(f'WARNING: exception when encrypting: {i}, {solver[os.path.basename(i)][0]}')
+                    warn_msg += f'WARNING: exception when encrypting: {i}, {get[0]}\n'
+                    print(f'WARNING: exception when encrypting: {i}, {get[0]}')
                     continue
-            with open(os.path.join(dir, solver[os.path.basename(i)][0]), 'wb') as f:
+            with open(os.path.join(dir, get[0]), 'wb') as f:
                 f.write(content)
+            try:
+                if len(get)>=3:
+                    modifyFileTime(os.path.join(dir, get[0]), *get[2])
+            except Exception as e:
+                warn_msg += f'WARNING: exception when modifying file time: {i}, {get[0]}\n'
+                print(f'WARNING: exception when modifying file time: {i}, {get[0]}')
+                continue
             if instance!= None:
                 instance.pb['value'] = index+1
                 instance.root.update()
