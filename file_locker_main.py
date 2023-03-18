@@ -1,4 +1,4 @@
-'''AES_file_locker [version 1.5.0]
+'''AES_file_locker [version 1.5.1]
 Powered by Python.
 (c)2023 Illumination Studio, Yanteen Technology,.Ltd.'''
 from AES import AES
@@ -93,8 +93,8 @@ def copy_dir(path):
 
 
 def md5(fname,  is_file_dir=None, encoding='utf-8'):
-    '''fname: 自动解释，可传入file directory, str, bytes\n
-        is_file_dir: 强制指定是否为file directory，传入bool或None，None时自动判断\n
+    ''':param fname: 自动解释，可传入file directory, str, bytes\n
+        :param is_file_dir: 强制指定是否为file directory，传入bool或None，None时自动判断\n
         注意：传入路径时未指定is_file_dir，则文件不存在不会报错，而是转而计算这个路径字符串str的哈希值。'''
     hash_md5 = hashlib.md5()
     if (os.path.isfile(fname) and is_file_dir != False) or is_file_dir == True:
@@ -123,7 +123,7 @@ def modifyFileTime(filePath, createTime=None, modifyTime=None, accessTime=None):
     createTimes, accessTimes, modifyTimes = GetFileTime(fh)
     if createTime != None:
         createTimes = Time(createTime)
-    if accessTimes != None:
+    if accessTime != None:
         accessTimes = Time(accessTime)
     if modifyTime != None:
         modifyTimes = Time(modifyTime)
@@ -173,7 +173,8 @@ def encrypt_dir(dir, master_password, ignore_check=False, config=configuration, 
         stretched_key = key_derivation(
             master_password, config['time_cost'], config['memory_cost'], config['parallelism'])
         rand_key = os.urandom(random.randint(60, 90)) + b'===end==='
-        config_bytes = aes.encrypt(json.dumps(config).encode('utf-8')) # 加密argon2配置参数，使其能隐藏在__satus.sti文件里面而不凸显出来
+        config_bytes = aes.encrypt(json.dumps(config).encode('utf-8'))
+        # 加密argon2配置参数，使其能隐藏在__satus.sti文件里面而不凸显出来
         config_bytes = config_bytes + int.to_bytes(len(config_bytes), 2, 'big')
         aes.key = stretched_key
         with open(os.path.join(dir, '__Status.sti'), 'wb') as f:
