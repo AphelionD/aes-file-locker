@@ -1,4 +1,4 @@
-'''AES_file_locker [version 1.5.1]
+'''AES_file_locker [version 1.5.5]
 Powered by Python.
 (c)2023 Illumination Studio, Yanteen Technology,.Ltd.'''
 from AES import AES
@@ -57,6 +57,8 @@ def all_files_can_be_moved_by_shutil(dir):
 
 
 def is_encrypted(dir):
+    if os.path.isfile(os.path.join(dir,'WARNING-警告！对这个文件夹下你的文件的任何修改将不被保存.txt')):
+        return True
     def get_all_files(dir):
         if not os.path.isdir(dir):
             raise OSError(f'No such directory: {dir}')
@@ -163,8 +165,14 @@ def encrypt_dir(dir, master_password, ignore_check=False, config=configuration, 
     config_input = config
     target_dir = os.path.join(dir, '.__sys') # 目标路径
     dirs, files = copy_dir(dir) # 克隆文件结构
-    files = list(filter(lambda x: x != '__Solver.dll' and x !=
-                 '__Status.sti' and os.path.splitext(x)[1] != '.afd', files)) # 筛选所有需要加密的文件和文件夹
+    files = list(filter(lambda x: x != '__Solver.dll' \
+                            and x !='__Status.sti' \
+                            and os.path.splitext(x)[1] != '.afd' \
+                            and x != "WARNING-警告！对这个文件夹下你的文件的任何修改将不被保存.txt",
+                        files)) # 筛选所有需要加密的文件和文件夹
+    if len(files) == 0:
+        print(f'WARNING: No files in {dir}!!!')
+        return False
     dirs = list(filter(lambda x: x != get_relative_dir(target_dir, dir), dirs))
     aes = AES('所有侵犯隐私者将受到严惩。', 'ECB') # 创建AES实例
     aes.b64 = False
@@ -214,9 +222,6 @@ def encrypt_dir(dir, master_password, ignore_check=False, config=configuration, 
             aes.key = stretched_key
             with open(os.path.join(dir, '__Status.sti'), 'wb') as f:
                 f.write(aes.encrypt(rand_key) + config_bytes)
-    if len(files) == 0:
-        print(f'WARNING: No files in {dir}!!!')
-        return False
     random.shuffle(files)
     if not os.path.isdir(target_dir):
         os.mkdir(target_dir)  # 在A目录下创建文件夹
@@ -272,6 +277,23 @@ def encrypt_dir(dir, master_password, ignore_check=False, config=configuration, 
 
 
 def decrypt_dir(dir, master_password, instance=None):
+    if os.path.isfile(os.path.join(dir,'WARNING-警告！对这个文件夹下你的文件的任何修改将不被保存.txt')):
+        # 在解密到一半的时候如果关闭程序或者解密失败之类，就会写入这个txt文件。
+        # 如果存在“解密失败”文件，那么先把所有的个人文件删除，用AFD解密出来的文件来覆盖。
+        for i in glob(os.path.join(dir, "*")):
+            if i== os.path.join(dir, ".__sys") \
+                or i == os.path.join(dir, "__Solver.dll") \
+                or i == os.path.join(dir, "__Status.sti") \
+                or i == os.path.join(dir,'WARNING-警告！对这个文件夹下你的文件的任何修改将不被保存.txt'):
+                continue
+            if os.path.isdir(i):
+                rmtree(i)
+            elif os.path.isfile(i):
+                os.remove(i)
+    else:
+        with open(os.path.join(dir,'WARNING-警告！对这个文件夹下你的文件的任何修改将不被保存.txt'), 'wb') as f:
+            f.write(b64decode(b'V0FSTklORyEhIQpBbnkgY2hhbmdlcyB0byB5b3VyIGZpbGVzIGluIHRoaXMgZm9sZGVyIHdpbGwgbm90IGJlIHNhdmVkISEhCgrorablkYrvvIHvvIHvvIEK5a+56L+Z5Liq5paH5Lu25aS55LiL5L2g55qE5paH5Lu255qE5Lu75L2V5L+u5pS55bCG5LiN6KKr5L+d5a2Y77yB77yB77yBCgrorablkYrvvIHvvIHvvIEK5bCN6YCZ5YCL5paH5Lu25aS+5LiL5L2g55qE5paH5Lu255qE5Lu75L2V5L+u5pS55bCH5LiN6KKr5L+d5a2Y77yB77yB77yBCgrorablkYohISEK44GT44Gu44OV44Kp44Or44OA44Gu5LiL44Gr44GC44KL44OV44Kh44Kk44Or44KS5aSJ5pu044GX44Gm44KC5L+d5a2Y44GV44KM44G+44Gb44KTISEhCgrQktCd0JjQnNCQ0J3QmNCVISEhCtCb0Y7QsdGL0LUg0LjQt9C80LXQvdC10L3QuNGPINCy0LDRiNC40YUg0YTQsNC50LvQvtCyINCyINGN0YLQvtC5INC/0LDQv9C60LUg0L3QtSDQsdGD0LTRg9GCINGB0L7RhdGA0LDQvdC10L3RiyEhIQoKQVRURU5USU9OICEhIQpUb3V0ZSBtb2RpZmljYXRpb24gYXBwb3J0w6llIMOgIHZvcyBmaWNoaWVycyBkYW5zIGNlIGRvc3NpZXIgbmUgc2VyYSBwYXMgc2F1dmVnYXJkw6llICEhIQoKV0FSTlVORyEhIQpBbGxlIMOEbmRlcnVuZ2VuIGFuIElocmVuIERhdGVpZW4gaW4gZGllc2VtIE9yZG5lciB3ZXJkZW4gbmljaHQgZ2VzcGVpY2hlcnQhISEKCuqyveqzoCEhIQrsnbQg7Y+0642UIOyVhOuemOydmCDtjIzsnbzsl5Ag64yA7ZWcIOuzgOqyvSDsgqztla3snYAg7KCA7J6l65CY7KeAIOyViuyKteuLiOuLpCEhCgotLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCuivt+WLv+WIoOmZpOatpOaWh+S7tuOAggpQbGVhc2UgZG8gbm90IGRlbGV0ZSB0aGlzIGZpbGUuIA=='))
+
     aes = AES('所有侵犯隐私者将受到严惩。', 'ECB')
     aes.b64 = False
     with open(os.path.join(dir, '__Status.sti'), 'rb') as f:  # 验证密码
@@ -357,6 +379,7 @@ def decrypt_dir(dir, master_password, instance=None):
                 instance.info.set('completed')
             instance.root.update()
     del content
+    os.remove(os.path.join(dir,'WARNING-警告！对这个文件夹下你的文件的任何修改将不被保存.txt'))
     return True
 
 
