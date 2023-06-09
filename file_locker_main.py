@@ -319,7 +319,7 @@ def decrypt_dir(dir, master_password, instance=None):
                 if instance != None:
                     instance.pb['value']=i+1
                     instance.root.update()
-            if instance!=None:
+            if instance != None:
                 instance.pb.grid_forget()
                 instance.root.update()
         try:
