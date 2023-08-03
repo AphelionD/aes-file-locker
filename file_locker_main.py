@@ -408,6 +408,7 @@ if __name__ == '__main__':
         if len(check_move) != 0:
             for t in check_move:
                 print(f'ERROR: file {t} can not be accessed')
+            os.system('pause')
             continue
         if is_encrypted(i):  # 如果处于加密状态
             def excecute1():
