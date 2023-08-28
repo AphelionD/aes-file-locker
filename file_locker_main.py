@@ -1,10 +1,10 @@
-'''AES_file_locker [version 1.5.5]
+'''AES_file_locker [version 1.6.0]
 Powered by Python.
 (c)2023 Illumination Studio, Yanteen Technology,.Ltd.'''
 from AES import AES
 from GUI import GUI
 import hashlib
-from argon2 import hash_password
+from argon2 import PasswordHasher
 # https://pypi.org/project/argon2-cffi/
 # pip install argon2-cffi
 import random
@@ -155,7 +155,8 @@ def encrypt_dir(dir, master_password, ignore_check=False, config=configuration, 
                 instance.pb.grid(row=4, column=0, columnspan=3)
                 instance.root.update()
             for i in tq:  # 使用argon2算法，迭代一个密码消耗3秒左右
-                key = hash_password(key, b'This is salt', t, m, p)
+                hasher = PasswordHasher(t,m,p)
+                key = hasher.hash(key, salt=b'This is salt').encode()
                 if instance != None:
                     instance.pb['value']=i+1
                     instance.root.update()
@@ -314,8 +315,9 @@ def decrypt_dir(dir, master_password, instance=None):
                 instance.pb.grid(row=4, column=0, columnspan=3)
                 instance.root.update()
             for i in tq:  # 使用argon2算法，迭代一个密码消耗3秒左右
-                master_password = hash_password(
-                    master_password, b'This is salt', config['time_cost'], config['memory_cost'], config['parallelism'])
+                hasher = PasswordHasher(config['time_cost'], config['memory_cost'], config['parallelism'])
+                master_password = hasher.hash(master_password, salt = b'This is salt').encode()
+                # 如果不使用强制的salt，argon2会自动使用一个随机数作为salt，此时需要使用PasswordHasher().verify()的方法，即每次生成的stretched key都不尽相同，不适用于本程序
                 if instance != None:
                     instance.pb['value']=i+1
                     instance.root.update()
