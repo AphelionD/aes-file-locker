@@ -1,9 +1,9 @@
 import hashlib
 import os
-import json
 from collections import OrderedDict
 from tqdm import tqdm
 import fnmatch
+import ejson
 
 HASH_METHOD_TABLE = {
     "sha256": hashlib.sha256,
@@ -106,7 +106,7 @@ class QuickHash():
     progress_bar=True
     '''class variable'''
     ignore=["QuickHash.json", "Thumbs.db"]
-    '''class variable'''
+    '''class variable, a list of files or directories to be ignored. Uses Unix wildcard syntax.'''
     def __init__(
         self,
         blocks=BLOCKS,
@@ -140,7 +140,7 @@ class QuickHash():
         self.__hash_method =HASH_METHOD_TABLE[value]
         return value
 
-    def quick_hash_v1_0(self,path:str,verify=False):
+    def _quick_hash_v1_0(self,path:str,verify=False):
         ''':param verify:如果True，那么不修改self.hash，否则修改
         样例：
         ```{
@@ -222,7 +222,7 @@ class QuickHash():
         headers["HASH_METHOD"] = HASH_METHOD
         result["headers"] = headers
         result["headers"]["total_hash"] = self.__hash_method(
-            json.dumps(result, indent=4, ensure_ascii=False).encode("utf-8")
+            ejson.dumps(result, indent=4, ensure_ascii=False).encode("utf-8")
         ).hexdigest()
         result["headers"]["QuickHash_version"] = "1.0"
         if verify:
@@ -233,7 +233,7 @@ class QuickHash():
             self.hash_content = result
             return self
 
-    def quick_hash_v1_1(self,path:str,verify=False):
+    def _quick_hash_v1_1(self,path:str,verify=False):
         ''':param verify:如果True，那么不修改self.hash，否则修改
         版本更新：支持配置检查文件差异的办法：修改时间、创建时间、内容，可分别启用或弃用，不推荐使用创建时间
 
@@ -299,7 +299,8 @@ class QuickHash():
         steps = self.blocks - 1
         for i in os.walk(path):
             parent = os.path.relpath(i[0], path) # 遍历到的路径相对于`path`变量的路径
-            if len(i[1]) == 0:  # 只保留最底层的目录，即保存在dir里面的目录下面都没有子目录了
+            if len(i[1]) == 0 and not self.matches_ignore(QuickHash.ignore,parent):
+                # 只保留最底层的目录，即保存在dir里面的目录下面都没有子目录了
                 result["dir"].append(parent)
             for file in sorted(i[2]):
                 if self.matches_ignore(QuickHash.ignore,file):
@@ -353,7 +354,7 @@ class QuickHash():
         headers['mtime'] = self.mtime
         result["headers"] = headers
         result["headers"]["total_hash"] = self.__hash_method(
-            json.dumps(result, indent=4, ensure_ascii=False).encode("utf-8")
+            ejson.dumps(result, indent=4, ensure_ascii=False).encode("utf-8")
         ).hexdigest()
         result["headers"]["QuickHash_version"] = "1.1"
         if verify:
@@ -365,26 +366,29 @@ class QuickHash():
             return self
 
 
-    def quick_hash(self,path:str,verify=False):
+    def hash(self,path:str,verify=False):
+        '''Hashes a directory, returns a QuickHash object.'''
         # 用于版本控制的函数
         if self.version == "1.0":
-            return self.quick_hash_v1_0(path,verify)
+            return self._quick_hash_v1_0(path,verify)
         elif self.version == "1.1":
-            return self.quick_hash_v1_1(path, verify)
+            return self._quick_hash_v1_1(path, verify)
     def to_str(self):
         '''returns a json-serialized QuickHash'''
-        return json.dumps(self.hash_content, ensure_ascii=False, indent=4)
+        return ejson.dumps(self.hash_content, ensure_ascii=False, indent=4)
 
     @classmethod
     def from_str(cls,hash_content:str|bytes):
         '''classmethod, reads a json-serialized QuickHash'''
-        hash_content = json.loads(hash_content)
+        hash_content = ejson.loads(hash_content)
         if hash_content['headers']['QuickHash_version'] == '1.0':
             blocks=int(hash_content["headers"]["BLOCKS"])
             block_size=int(hash_content["headers"]["BLOCK_SIZE"])
             hash_method=hash_content["headers"]["HASH_METHOD"]
             version = hash_content["headers"]["QuickHash_version"]
-            return cls(blocks, block_size, hash_method, mtime, ctime, content, version)
+            new_instance = cls(blocks, block_size, hash_method, version)
+            new_instance.hash_content = hash_content
+            return new_instance
         elif hash_content['headers']['QuickHash_version'] =='1.1':
             blocks=int(hash_content["headers"]["BLOCKS"])
             block_size=int(hash_content["headers"]["BLOCK_SIZE"])
@@ -393,11 +397,13 @@ class QuickHash():
             content = hash_content["headers"]["content"]
             mtime = hash_content["headers"]["mtime"]
             ctime = hash_content["headers"]["ctime"]
-            return cls(blocks, block_size, hash_method, mtime, ctime, content, version)
+            new_instance = cls(blocks, block_size, hash_method, mtime, ctime, content, version)
+            new_instance.hash_content = hash_content
+            return new_instance
 
     def verify(self, path:str):
 
-        new_hash = self.quick_hash(path,True)
+        new_hash = self.hash(path,True)
         if new_hash.hash_content['headers']['total_hash']== self.hash_content['headers']['total_hash']:
             return True
         else:
@@ -418,9 +424,10 @@ class QuickHash():
 if __name__ == "__main__":
     QuickHash.progress_bar = False
     qh1 = QuickHash(mtime=True,content=False) # initialization
-    qh1.quick_hash(r"C:\Users\jenso\Desktop\新建文件夹\T1")
+    qh1.hash(r"C:\Users\jenso\Desktop\新建文件夹\T1")
     str1 = qh1.to_str()
     print(str1)
     qh2 = QuickHash.from_str(str1)
-    qh2.quick_hash(r"C:\Users\jenso\Desktop\新建文件夹\T2")
-    QuickHashCmp(qh1, qh2).report()
+    print(qh2.verify(r"C:\Users\jenso\Desktop\新建文件夹\T1"))
+    # qh2.hash(r"C:\Users\jenso\Desktop\新建文件夹\T2")
+    # QuickHashCmp(qh1, qh2).report()

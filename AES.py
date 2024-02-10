@@ -144,6 +144,7 @@ if __name__=='__main__':
     aes.b64 = False
     b = aes.encrypt(a)
     print(b)
+    aes.key = 'hello'
     c = aes.decrypt(b).decode('utf-8')
     print(c)
     assert a == c

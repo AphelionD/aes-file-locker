@@ -7,18 +7,19 @@ import hashlib
 from argon2 import PasswordHasher
 # https://pypi.org/project/argon2-cffi/
 # pip install argon2-cffi
-import random
-import json
 import os
 import hashlib
 from glob import glob
-from shutil import rmtree, move
+from shutil import rmtree
 from tqdm import tqdm
-from base64 import b64decode, b64encode
+from base64 import b64decode
 from tkinter import ttk
 from win32file import CreateFile, SetFileTime, GetFileTime, CloseHandle
 from win32file import GENERIC_READ, GENERIC_WRITE, OPEN_EXISTING
 from pywintypes import Time  # 可以忽视这个 Time 报错（运行程序还是没问题的）
+from Quick_Hash import QuickHash,QuickHashCmp
+from ejson import dump,dumps,load,loads
+from uuid import uuid4
 CONFIG_DEFAULT = {
     'time_cost': 1,
     'memory_cost': 2097152,
@@ -29,31 +30,29 @@ configuration = {  # customize your own configuration here
     'memory_cost': 2097152,  # KiB
     'parallelism': 5
 }
-def all_files_can_be_moved_by_shutil(dir):
+ignores = [
+    "*.afd",
+    "*\.__sys*",
+    "*config.json",
+    "*.ini",
+    "*Thumbs.db",
+    "*WARNING-警告！对这个文件夹下你的文件的任何修改将不被保存.txt"
+]
+def all_files_can_be_moved(dir):
     '''检测一个目录下的文件是否都可以被移动，返回一个包含所有不可被移动的文件的list'''
     def get_all_files_list(dir):
-        list = []
+        li = []
         if not os.path.isdir(dir):
             raise OSError(f'No such directory: {dir}')
         for i in os.walk(dir):
             for n in i[2]:
-                list.append(os.path.join(i[0], n))
-        return list
-    list = []
-    i = 0
-    while os.path.isdir(os.path.join(dir, str(i))):
-        i += 1
-    target = os.path.join(dir, str(i))
-    os.mkdir(target)
-    del i
-    for k in get_all_files_list(dir):
-        try:
-            move(k, os.path.join(target, os.path.basename(k)))
-            move(os.path.join(target, os.path.basename(k)), k)
-        except:
-            list.append(k)
-    rmtree(target)
-    return list
+                li.append(os.path.join(i[0], n))
+        return li
+    li = []
+    for i in get_all_files_list(dir):
+        if not os.access(i,os.W_OK) or not os.access(i,os.R_OK):
+            li.append(i)
+    return li
 
 
 def is_encrypted(dir):
@@ -66,25 +65,9 @@ def is_encrypted(dir):
             for n in i[2]:
                 yield os.path.join(i[0], n)
     for f in get_all_files(dir):
-        ext = os.path.splitext(f)[1]
-        if ext != '.afd' and ext != '.dll' and ext != '.sti':
+        if not QuickHash.matches_ignore(ignores,f):
             return False
     return True
-
-def copy_dir(path):
-    '''获取这个路径下的所有文件和文件夹，使用相对路径
-
-    返回：[[dir1, dir2, ...], [file1, file2, ...]]'''
-    files = []
-    directories = []
-    for i in os.walk(path):
-        for x in i[2]:
-            files.append(os.path.relpath(os.path.join(i[0], x), path))
-        if i[0] == path:
-            continue
-        directories.append(os.path.relpath(i[0], path))
-    return [directories, files]
-
 
 def md5(fname,  is_file_dir=None, encoding='utf-8'):
     ''':param fname: 自动解释，可传入file directory, str, bytes\n
@@ -129,7 +112,7 @@ def getFileTime(filename):
     assert os.path.isfile(filename), "File %s not found" % filename
     return (os.path.getctime(filename), os.path.getmtime(filename), os.path.getatime(filename))
 
-def encrypt_dir(dir, master_password, ignore_check=False, config=configuration, instance = None):
+def encrypt_dir(dir, master_password, ignore_check=False, argon2_config=configuration, instance = None):
     ''':param ignore_check: whether check password when encrypting
     :param config: a dictionary, like the `CONFIG_DEFAULT`
     :param instance: a GUI instance, for handling progressbar and other GUI interactions'''
@@ -155,81 +138,135 @@ def encrypt_dir(dir, master_password, ignore_check=False, config=configuration, 
             if instance!=None:
                 instance.pb.grid_forget()
         return key
-    config_input = config
-    target_dir = os.path.join(dir, '.__sys') # 目标路径
-    dirs, files = copy_dir(dir) # 克隆文件结构
-    files = list(filter(lambda x: x != '__Solver.dll' \
-                            and x !='__Status.sti' \
-                            and os.path.splitext(x)[1] != '.afd' \
-                            and x != "WARNING-警告！对这个文件夹下你的文件的任何修改将不被保存.txt",
-                        files)) # 筛选所有需要加密的文件和文件夹
+    afd_target_dir = os.path.join(dir, '.__sys') # afd文件的目标路径
+    QuickHash.progress_bar = False # 关闭QuickHash的进度条
+    QuickHash.ignore = ignores # 设置忽略的文件
+    qh = QuickHash(mtime=True)
+    qh.hash(dir)
+    hash_content = qh.hash_content
+    dirs, files = hash_content['dir'], hash_content['file'].keys()
     if len(files) == 0:
         print(f'WARNING: No files in {dir}!!!')
         return False
-    dirs = list(filter(lambda x: x != os.path.relpath(target_dir, dir), dirs))
-    aes = AES('所有侵犯隐私者将受到严惩。', 'ECB') # 创建AES实例
-    aes.b64 = False
-    if not os.path.isfile(os.path.join(dir, '__Status.sti')) or ignore_check:
-        # 如果是第一次加密或者需要覆盖原本的密码，`ignore_check` 主要是为了防止因为输错密码而导致所有文件被加密无法找回
-        stretched_key = key_derivation(
-            master_password, config['time_cost'], config['memory_cost'], config['parallelism'])
-        rand_key = os.urandom(random.randint(60, 90)) + b'===end==='
-        config_bytes = aes.encrypt(json.dumps(config).encode('utf-8'))
-        # 加密argon2配置参数，使其能隐藏在__satus.sti文件里面而不凸显出来
-        config_bytes = config_bytes + int.to_bytes(len(config_bytes), 2, 'big')
-        aes.key = stretched_key
-        with open(os.path.join(dir, '__Status.sti'), 'wb') as f:
-            f.write(aes.encrypt(rand_key)+config_bytes) # __Status.sti 结构：加密后的rand_key+加密后的config_bytes
-    else:
-        with open(os.path.join(dir, '__Status.sti'), 'rb') as f:  # 先验证密码
-            content = f.read()
-            config_len = int.from_bytes(content[-2:], 'big')
-            config = json.loads(aes.decrypt(
-                content[-2-config_len:-2]).decode('utf-8'))
-            rand_key = content[:-2-config_len]
-            stretched_key = key_derivation(
-                master_password, config['time_cost'], config['memory_cost'], config['parallelism'])
-            # 获得配置参数
-            aes.key = stretched_key
-            try: # 验证密码
-                rand_key = aes.decrypt(rand_key)
-                if rand_key[-9:] != b'===end===':
-                    raise Exception
-            except:
-                print(f'ERROR: Password incorrect for {dir}!!!')
-                return False
-            aes.key = '所有侵犯隐私者将受到严惩。'
-            if config != config_input: # 如果函数传入的配置参数和从__Status.sti文件中提取出来的参数不一致，则使用传入的参数
-                stretched_key = key_derivation(
-                    master_password, config_input['time_cost'], config_input['memory_cost'], config_input['parallelism'])
-                config_bytes = aes.encrypt(
-                    json.dumps(config_input).encode('utf-8'))
-                config_bytes = config_bytes + \
-                    int.to_bytes(len(config_bytes), 2, 'big')
-            else:
-                config_bytes = aes.encrypt(json.dumps(config).encode('utf-8'))
-                config_bytes = config_bytes + \
-                    int.to_bytes(len(config_bytes), 2, 'big')
 
-            rand_key = os.urandom(random.randint(60, 90)) + b'===end==='
-            aes.key = stretched_key
-            with open(os.path.join(dir, '__Status.sti'), 'wb') as f:
-                f.write(aes.encrypt(rand_key) + config_bytes)
-    random.shuffle(files)
-    if not os.path.isdir(target_dir):
-        os.mkdir(target_dir)  # 在A目录下创建文件夹
+    '''密码检验与密钥准备'''
+    aes = AES(b'$L\xa7\xd1\xban!.:\x8b5\x08xI4*Xs\x19S\xf6F\xe7\x11v\xc9\x15\x10\t\x1e\xcfR\xdd\xaf\xf0\xb22\xd4\xa7\xea+\x06c\x12\x915\xad\xfb\xe7[\xe0B\xe9\x127\x0f\x84Y\x9fBg\x0f%7',
+              'ECB') # 使用ECB模式初始化实例
+    # 这是一个固定的密钥，用于读取config文件。加密的目的是隐藏起json的模样
+    aes.b64 = False
+    if not os.path.isfile(os.path.join(dir, 'config.json')) or ignore_check:
+        # 如果是第一次加密，或者需要覆盖原本的密码，`ignore_check` 主要是为了防止因为输错密码而导致所有文件被加密无法找回
+        ignore_check = True
+        if os.path.exists(afd_target_dir):
+            for i in glob(os.path.join(afd_target_dir,'*')):
+                os.remove(i)
+        stretched_key = key_derivation(
+            master_password, argon2_config['time_cost'], argon2_config['memory_cost'], argon2_config['parallelism'])
+        rand_key = os.urandom(128) + b"===end==="
+        updating = False # 是否使用文件动态更新
     else:
-        for i in glob(os.path.join(target_dir, '*')):
-            os.remove(i)
-    solver = {}  # 初始化目录解释器
-    salt = os.urandom(10)
-    for index, file in enumerate(files): # 进行目录解释，为每一个文件指定新的独一无二的文件名
-        solver[file] = (md5(bytes(str(index), encoding='ascii') + salt)+'.afd', os.urandom(16), getFileTime(os.path.join(dir, file)))
-    # 目录解释器结构：{相对路径文件名: (新的AFD文件名, iv向量，(创建时间，修改时间，访问时间))}
-    aes.key = rand_key
+        # DEVELOPING
+        # 验证密码：……
+        with open(os.path.join(dir, 'config.json'), 'rb') as f:
+            read_config_json = aes.decrypt(f.read()).decode()
+            read_config_json = loads(read_config_json)
+        # config_json:{"argon2_configuration":"明文",
+        # "password_header":{"code":"密文","iv":b""},
+        # "interpreter":{"code":"密文","iv":b""},
+        # "QuickHash":{"code":"密文","iv":b""},
+        # "AFD_QuickHash":{"明文"}
+        # }
+
+        # 获得配置参数，新建一个read_config变量
+        read_argon2_config = read_config_json['argon2_configuration']
+        read_password_header = read_config_json['password_header']
+        read_solver = read_config_json['interpreter']
+        read_quick_hash = read_config_json['QuickHash']
+        stretched_key = key_derivation(
+            master_password,
+            read_argon2_config["time_cost"],
+            read_argon2_config["memory_cost"],
+            read_argon2_config["parallelism"],
+        )
+        # 使用读取的参数验证密码
+        aes.key = stretched_key
+        aes.mode = 'CBC'
+        try: # 验证密码
+            read_rand_key = aes.decrypt(read_password_header['code'],iv=read_password_header['iv'])
+            if read_rand_key[-9:] != b'===end===':
+                raise Exception
+        except:
+            print(f'ERROR: Password incorrect for {dir}!!!')
+            return False
+
+        if read_argon2_config != argon2_config:
+            # 如果函数传入的配置参数和从config.json文件中提取出来的参数不一致，则使用传入的参数重新获得stretched_key
+            stretched_key = key_derivation(
+                master_password,
+                argon2_config["time_cost"],
+                argon2_config["memory_cost"],
+                argon2_config["parallelism"],
+            )
+            # 需要删除所有里面的文件，相当于要全部重新加密
+            if os.path.exists(afd_target_dir):
+                for i in glob(os.path.join(afd_target_dir,'*')):
+                    os.remove(i)
+            argon2_config
+            updating = False # 是否使用文件动态更新
+        else:
+            updating = True
+            aes.key = read_rand_key
+            read_solver = aes.decrypt(read_solver['code'],iv=read_solver['iv']).decode()
+            read_solver = loads(read_solver)
+            read_quick_hash = aes.decrypt(read_quick_hash['code'],iv=read_quick_hash['iv']).decode()
+            read_qh = QuickHash.from_str(read_quick_hash)
+
+        rand_key = os.urandom(128) + b"===end==="
+
+    '''验证afd文件的合法性'''
+    if not ignore_check:
+        QuickHash.ignore = [x for x in ignores if x not in ["*.afd","*\.__sys*"]]
+        if os.path.exists(os.path.join(dir,'config.json')):
+            qh_afd = QuickHash.from_str(read_config_json['AFD_QuickHash'])
+            if not qh_afd.verify(afd_target_dir):
+                # 如果afd文件与解密时不一致，也应该视为全部重新加密
+                updating = False
+                for i in glob(os.path.join(afd_target_dir,'*')):
+                    os.remove(i)
+
+    # DEVELOPING: 到这里，需要准备好的变量：stretched_key, argon2_config（本次使用的config），rand_key, updating
+    # 如果updating==True，那么要准备好read_solver, read_qh
+    '''目录解释器编写与文件加密准备'''
+    QuickHash.ignore = ignores
+    if not os.path.isdir(afd_target_dir):
+        os.mkdir(afd_target_dir)  # 在A目录下创建文件夹
+    if updating:
+        cmp = QuickHashCmp(qh, read_qh)
+        deleted_files = cmp.right_only + list(cmp.different.keys()) # 要删除的afd文件
+        updated_files = cmp.left_only + list(cmp.different.keys()) # 要更新或添加的文件
+        for i in deleted_files:
+            os.remove(os.path.join(afd_target_dir, read_solver[i][0])) # 删除afd 文件
+            del read_solver[i] # 删除原解释器中的key
+        solver = read_solver
+        for i in updated_files:
+            solver[i] = (str(uuid4())+'.afd',
+                         os.urandom(16),
+                         getFileTime(os.path.join(dir, i)),
+                         os.urandom(128))
+            # 把需要更新的文件添加到目录解释器
+    else:
+        solver = {}
+        for i in files:
+            solver[i] = (str(uuid4())+'.afd',
+                         os.urandom(16),
+                         getFileTime(os.path.join(dir, i)),
+                         os.urandom(128))
+    # 目录解释器结构：{相对路径文件名: (新的AFD文件名, iv向量，(创建时间，修改时间，访问时间)，每个文件的单独密钥)}
+
+    '''文件加密'''
     aes.mode = 'CBC'
     # 设置AES CBC模式
-    with tqdm(enumerate(files)) as tq:
+    with tqdm(enumerate(solver.keys())) as tq:
         if instance!=None: # 进度条
             assert isinstance(instance, GUI), "param 'instance' must be a GUI instance"
             instance.info.set('encrypting...')
@@ -240,31 +277,59 @@ def encrypt_dir(dir, master_password, ignore_check=False, config=configuration, 
             instance.pb
             instance.root.update()
         for index,i in tq:
+            if os.path.exists(os.path.join(afd_target_dir, solver[i][0])):
+                # 如果这个文件已经存在，那么说明是之前就已经有过的一样的文件，无需再次加密
+                if instance!=None:
+                    instance.pb['value']=index+1
+                    instance.root.update()
+                continue
             # 加密文件
             with open(os.path.join(dir, i), 'rb') as f:
+                # 读取文件
+                aes.key = solver[i][3]
                 content = aes.encrypt(f.read(), iv=solver[i][1])
-            with open(os.path.join(target_dir, solver[i][0]), 'wb') as f:
+            with open(os.path.join(afd_target_dir, solver[i][0]), 'wb') as f:
+                # 写入文件
                 f.write(content)
+            # os.remove(os.path.join(dir, i))
             if instance!=None:
                 instance.pb['value']=index+1
                 instance.root.update()
         if instance!=None:
             instance.pb.grid_forget()
             instance.info.set('completed')
-    for i in solver.keys():
-        # 由于json不支持传入bytes，因此把iv向量用base64转码（使用ascii）
-        solver[i] = (solver[i][0], b64encode(solver[i][1]).decode('ascii'), solver[i][2])
-    solver = json.dumps([solver, dirs], ensure_ascii=False,
-                        indent=4)  # 序列化解释器（与dirs列表打包）
+
+    '''打包config.json'''
+    config_json = {"argon2_configuration":argon2_config}
+    iv = os.urandom(16)
+    aes.key = stretched_key
+    assert aes.mode == 'CBC' # DEVELOPING
+    config_json['password_header'] = {
+        "code":aes.encrypt(rand_key,iv=iv),
+        "iv":iv
+    }
+    iv = os.urandom(16)
+    aes.key = rand_key
+    config_json['interpreter'] = {
+        "code":aes.encrypt(dumps(solver).encode(),iv=iv),
+        "iv":iv
+    }
+    iv = os.urandom(16)
+    aes.key = rand_key
+    config_json['QuickHash'] = {
+        "code":aes.encrypt(qh.to_str().encode(),iv=iv),
+        "iv":iv
+    }
+    QuickHash.ignore = [x for x in ignores if x not in ["*.afd","*\.__sys*"]]
+    config_json['AFD_QuickHash'] = QuickHash().hash(afd_target_dir).to_str()
+    aes.key = b'$L\xa7\xd1\xban!.:\x8b5\x08xI4*Xs\x19S\xf6F\xe7\x11v\xc9\x15\x10\t\x1e\xcfR\xdd\xaf\xf0\xb22\xd4\xa7\xea+\x06c\x12\x915\xad\xfb\xe7[\xe0B\xe9\x127\x0f\x84Y\x9fBg\x0f%7'
     aes.mode = 'ECB'
-    with open(os.path.join(dir, '__Solver.dll'), 'wb') as f:
-        f.write(aes.encrypt(solver))  # 加密解释器
+    with open(os.path.join(dir, 'config.json'), 'wb') as f:
+        f.write(aes.encrypt(dumps(config_json)))
     for i in files:
-        with open(os.path.join(dir, i), 'wb') as f:
-            f.write(b'')
-        os.remove(os.path.join(dir, i))
-    for i in dirs:
-        if os.path.isdir(os.path.join(dir, i)):
+        os.remove(os.path.join(dir,i))
+    for i in glob(os.path.join(dir,'*')):
+        if os.path.isdir(i) and not QuickHash.matches_ignore(ignores,i):
             rmtree(os.path.join(dir, i))
     return True
 
@@ -274,10 +339,7 @@ def decrypt_dir(dir, master_password, instance=None):
         # 在解密到一半的时候如果关闭程序或者解密失败之类，就会写入这个txt文件。
         # 如果存在“解密失败”文件，那么先把所有的个人文件删除，用AFD解密出来的文件来覆盖。
         for i in glob(os.path.join(dir, "*")):
-            if i== os.path.join(dir, ".__sys") \
-                or i == os.path.join(dir, "__Solver.dll") \
-                or i == os.path.join(dir, "__Status.sti") \
-                or i == os.path.join(dir,'WARNING-警告！对这个文件夹下你的文件的任何修改将不被保存.txt'):
+            if QuickHash.matches_ignore(ignores,i):
                 continue
             if os.path.isdir(i):
                 rmtree(i)
@@ -287,18 +349,12 @@ def decrypt_dir(dir, master_password, instance=None):
         with open(os.path.join(dir,'WARNING-警告！对这个文件夹下你的文件的任何修改将不被保存.txt'), 'wb') as f:
             f.write(b64decode(b'V0FSTklORyEhIQpBbnkgY2hhbmdlcyB0byB5b3VyIGZpbGVzIGluIHRoaXMgZm9sZGVyIHdpbGwgbm90IGJlIHNhdmVkISEhCgrorablkYrvvIHvvIHvvIEK5a+56L+Z5Liq5paH5Lu25aS55LiL5L2g55qE5paH5Lu255qE5Lu75L2V5L+u5pS55bCG5LiN6KKr5L+d5a2Y77yB77yB77yBCgrorablkYrvvIHvvIHvvIEK5bCN6YCZ5YCL5paH5Lu25aS+5LiL5L2g55qE5paH5Lu255qE5Lu75L2V5L+u5pS55bCH5LiN6KKr5L+d5a2Y77yB77yB77yBCgrorablkYohISEK44GT44Gu44OV44Kp44Or44OA44Gu5LiL44Gr44GC44KL44OV44Kh44Kk44Or44KS5aSJ5pu044GX44Gm44KC5L+d5a2Y44GV44KM44G+44Gb44KTISEhCgrQktCd0JjQnNCQ0J3QmNCVISEhCtCb0Y7QsdGL0LUg0LjQt9C80LXQvdC10L3QuNGPINCy0LDRiNC40YUg0YTQsNC50LvQvtCyINCyINGN0YLQvtC5INC/0LDQv9C60LUg0L3QtSDQsdGD0LTRg9GCINGB0L7RhdGA0LDQvdC10L3RiyEhIQoKQVRURU5USU9OICEhIQpUb3V0ZSBtb2RpZmljYXRpb24gYXBwb3J0w6llIMOgIHZvcyBmaWNoaWVycyBkYW5zIGNlIGRvc3NpZXIgbmUgc2VyYSBwYXMgc2F1dmVnYXJkw6llICEhIQoKV0FSTlVORyEhIQpBbGxlIMOEbmRlcnVuZ2VuIGFuIElocmVuIERhdGVpZW4gaW4gZGllc2VtIE9yZG5lciB3ZXJkZW4gbmljaHQgZ2VzcGVpY2hlcnQhISEKCuqyveqzoCEhIQrsnbQg7Y+0642UIOyVhOuemOydmCDtjIzsnbzsl5Ag64yA7ZWcIOuzgOqyvSDsgqztla3snYAg7KCA7J6l65CY7KeAIOyViuyKteuLiOuLpCEhCgotLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCuivt+WLv+WIoOmZpOatpOaWh+S7tuOAggpQbGVhc2UgZG8gbm90IGRlbGV0ZSB0aGlzIGZpbGUuIA=='))
 
-    aes = AES('所有侵犯隐私者将受到严惩。', 'ECB')
-    aes.b64 = False
-    with open(os.path.join(dir, '__Status.sti'), 'rb') as f:  # 验证密码
-        content = f.read()
-        config_len = int.from_bytes(content[-2:], 'big')
-        config = json.loads(aes.decrypt(
-            content[-2-config_len:-2]).decode('utf-8'))
-        rand_key = content[:-2-config_len]
-        with tqdm(range(3), leave=False, smoothing=0.8) as tq:
+    def key_derivation(key, t, m, p):
+        '''使用argon2，传入配置参数'''
+        with tqdm(range(3), leave=False, smoothing=0.8) as tq: # 进度条
             tq.set_description('Verifying password')
-            master_password = master_password.encode('utf-8')
-            if instance!=None:
+            key = key.encode('utf-8')
+            if instance!=None: #对GUI实例进行进度条更新
                 assert isinstance(instance,GUI), "param 'instance' must be a GUI instance"
                 instance.info.set('Verifying password')
                 instance.pb = ttk.Progressbar(instance.root, length=instance.root.winfo_width())
@@ -307,32 +363,65 @@ def decrypt_dir(dir, master_password, instance=None):
                 instance.pb.grid(row=4, column=0, columnspan=3)
                 instance.root.update()
             for i in tq:  # 使用argon2算法，迭代一个密码消耗3秒左右
-                hasher = PasswordHasher(config['time_cost'], config['memory_cost'], config['parallelism'])
-                master_password = hasher.hash(master_password, salt = b'This is salt').encode()
-                # 如果不使用强制的salt，argon2会自动使用一个随机数作为salt，此时需要使用PasswordHasher().verify()的方法，即每次生成的stretched key都不尽相同，不适用于本程序
+                hasher = PasswordHasher(t,m,p)
+                key = hasher.hash(key, salt=b'This is salt').encode()
                 if instance != None:
                     instance.pb['value']=i+1
                     instance.root.update()
-            if instance != None:
+            if instance!=None:
                 instance.pb.grid_forget()
-                instance.root.update()
-        try:
-            aes.key = master_password
-            rand_key = aes.decrypt(rand_key)
-            if rand_key[-9:] != b'===end===':
-                raise Exception
-        except:
-            print(f'ERROR: Password incorrect for {dir}!!!')
-            return False
-    aes.key = rand_key
-    with open(os.path.join(dir, '__Solver.dll'), 'rb') as f:
-        solver, dirs = json.loads(aes.decrypt(f.read()))  # 加载目录解释器
-    for i in dirs:  # 创建目录
+        return key
+
+    '''验证密码'''
+    aes = AES(b'$L\xa7\xd1\xban!.:\x8b5\x08xI4*Xs\x19S\xf6F\xe7\x11v\xc9\x15\x10\t\x1e\xcfR\xdd\xaf\xf0\xb22\xd4\xa7\xea+\x06c\x12\x915\xad\xfb\xe7[\xe0B\xe9\x127\x0f\x84Y\x9fBg\x0f%7',
+              'ECB') # 使用ECB模式初始化实例
+    # 这是一个固定的密钥，用于读取config文件。加密的目的是隐藏起json的模样
+    aes.b64 = False
+    with open(os.path.join(dir, 'config.json'), 'rb') as f:
+        read_config_json = aes.decrypt(f.read()).decode()
+        read_config_json = loads(read_config_json)
+    # config_json:{"argon2_configuration":"明文",
+    # "password_header":{"code":"密文","iv":b""},
+    # "interpreter":{"code":"密文","iv":b""},
+    # "QuickHash":{"code":"密文","iv":b""},
+    # "AFD_QuickHash":{"明文"}
+    # }
+
+    # 获得配置参数，新建一个read_config变量
+    read_argon2_config = read_config_json['argon2_configuration']
+    read_password_header = read_config_json['password_header']
+    read_solver = read_config_json['interpreter']
+    read_quick_hash = read_config_json['QuickHash']
+    stretched_key = key_derivation(
+        master_password,
+        read_argon2_config["time_cost"],
+        read_argon2_config["memory_cost"],
+        read_argon2_config["parallelism"],
+    )
+    # 使用读取的参数验证密码
+    aes.key = stretched_key
+    aes.mode = 'CBC'
+    try: # 验证密码
+        read_rand_key = aes.decrypt(read_password_header['code'],iv=read_password_header['iv'])
+        if read_rand_key[-9:] != b'===end===':
+            raise Exception
+    except:
+        print(f'ERROR: Password incorrect for {dir}!!!')
+        return False
+    aes.key = read_rand_key
+    read_solver = aes.decrypt(read_solver['code'],iv=read_solver['iv']).decode()
+    read_solver = loads(read_solver)
+    read_quick_hash = aes.decrypt(read_quick_hash['code'],iv=read_quick_hash['iv']).decode()
+    print(read_quick_hash) # DEVELOPING
+    read_qh = QuickHash.from_str(read_quick_hash)
+    solver = {v[0]: (k, v[1], v[2],v[3]) for k, v in read_solver.items()}  # 将解释器反向
+    # 结构：{AFD文件名: (相对路径文件名, iv向量，(创建时间，修改时间，访问时间), 每个文件的密钥)}
+
+    '''创建目录'''
+    for i in read_qh.hash_content['dir']:  # 创建目录
         if not os.path.isdir(os.path.join(dir, i)):
             os.makedirs(os.path.join(dir, i))
-    solver = {v[0]: (k, b64decode(v[1].encode('ascii')), v[2])
-              for k, v in solver.items()}  # 将解释器反向
-    # 结构：{AFD文件名: (相对路径文件名, iv向量，(创建时间，修改时间，访问时间))}
+
     aes.mode = 'CBC'
     with tqdm(enumerate(len_files:=glob(os.path.join(dir, '.__sys', '*.afd')))) as tq:
         if instance!= None:
@@ -348,6 +437,7 @@ def decrypt_dir(dir, master_password, instance=None):
             get = solver[os.path.basename(i)]
             with open(i, 'rb') as f:
                 try:
+                    aes.key = get[3]
                     content = aes.decrypt(f.read(), iv=get[1])
                 except:
                     warn_msg += f'WARNING: exception when decrypting: {i}, {get[0]}\n'
@@ -380,13 +470,13 @@ def decrypt_dir(dir, master_password, instance=None):
 if __name__ == '__main__':
     if not os.path.isfile('directory settings.json'):
         f = open('directory settings.json', 'w', encoding='utf-8')
-        json.dump(['Input directories here.'], f, ensure_ascii=False, indent=4)
+        dump(['Input directories here.'], f, ensure_ascii=False, indent=4)
         f.close()
         os.system('pause')
         exit()
     else:
         f = open('directory settings.json', 'r', encoding='utf-8')
-        dirs = json.load(f)
+        dirs = load(f)
 
     filtered = list(filter(lambda x: not os.path.isdir(x), dirs))
     if not len(filtered) == 0:
@@ -398,7 +488,7 @@ if __name__ == '__main__':
 
     for i in dirs:
         print(f'Current directory: {i}')
-        check_move = all_files_can_be_moved_by_shutil(i)
+        check_move = all_files_can_be_moved(i)
         if len(check_move) != 0:
             for t in check_move:
                 print(f'ERROR: file {t} can not be accessed')
@@ -417,7 +507,7 @@ if __name__ == '__main__':
             a.loop()
 
         else:
-            if not os.path.isfile(os.path.join(i, '__Status.sti')):  # 如果是第一次加密
+            if not os.path.isfile(os.path.join(i, 'config.json')):  # 如果是第一次加密
                 def execute2():
                     if a.user_name != a.password:
                         a.info.set(

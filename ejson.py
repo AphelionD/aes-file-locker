@@ -58,13 +58,13 @@ loads = partial(json.loads,object_hook=object_hook)
 load = partial(json.load,object_hook=object_hook)
 
 if __name__ == '__main__':
-    from QuickHash.Quick_Hash import QuickHash
+    from Quick_Hash import QuickHash
     # class QuickHash(QuickHash_imported):
     #     pass # 序列化的自定义对象一定要来自本文件,否则会出错
     def f(n):return n**2
     QuickHash.progress_bar = False
     qh1 = QuickHash(mtime=True) # initialization
-    qh1.quick_hash(r"C:\Users\jenso\Desktop\新建文件夹\T1")
+    qh1.hash(r"C:\Users\jenso\Desktop\新建文件夹\T1")
     a = json.dumps(['123',12.1565,'你好'.encode(),['hello;',123,{'def':'en'}],qh1],default=default,ensure_ascii=False)
     print(a)
     b = json.loads(a.encode(),object_hook=object_hook)
