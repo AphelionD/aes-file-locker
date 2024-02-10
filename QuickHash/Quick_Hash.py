@@ -15,18 +15,7 @@ HASH_METHOD = "sha256"
 BLOCKS = 5  # how many blocks of bytes to hash in a file
 BLOCK_SIZE = 102400  # 10KiB = 102400B
 
-def matches_ignore(ignore: list[str], dir:str):
-    ''':param ignore: Iterable, 里面的字符串是Unix shell 风格的通配pattern，例如：['*.py[cod]',r'*\desktop\*']
-    :param dir: Directory'''
-    for pattern in ignore:
-        if fnmatch.fnmatch(dir, pattern):
-            return True
-    return False
-def get_relative_dir(a, b):
-    """获取a相对于b的路径.
-    \n例如，返回：存志群里的音频资料\音标听力\光盘1\9. 巩固练习\巩固练习 01.mp3"""
-    assert isinstance(a, str) and isinstance(b, str), "param 'a' and 'b' must be string"
-    return a.replace(b, "").strip("\\")  # 这种方式也许在别的操作系统上面会出现问题
+
 
 class VersionError(ValueError):
     pass
@@ -85,26 +74,26 @@ class QuickHashCmp():
         if self.is_equal:
             print('The two directories are exactly the same!')
             return
-        if len(self.left_only)!=0:
+        if self.left_only: # 如果列表不为空
             print('These files are only in the left hasher:')
             for i in self.left_only:
                 print(i)
             print('-'*80)
-        if len(self.right_only)!=0:
+        if self.right_only:
             print('These files are only in the right hasher:')
             for i in self.right_only:
                 print(i)
             print('-'*80)
-        if len(self.different)!=0:
+        if self.different:
             print('Different files:')
             print(self.different.items())
             print('-'*80)
-        if len(self.left_dir_only) != 0:
+        if self.left_dir_only:
             print('These directories are only in the left: ')
             for i in self.left_dir_only:
                 print(i)
             print('-'*80)
-        if len(self.right_dir_only)!=0:
+        if self.right_dir_only:
             print('These directories are only in the right: ')
             for i in self.right_dir_only:
                 print(i)
@@ -114,24 +103,25 @@ class QuickHashCmp():
         self.different = {}
 
 class QuickHash():
+    progress_bar=True
+    '''class variable'''
+    ignore=["QuickHash.json", "Thumbs.db"]
+    '''class variable'''
     def __init__(
         self,
-        progress_bar=True,
         blocks=BLOCKS,
         block_size=BLOCK_SIZE,
         hash_method=HASH_METHOD,
-        ignore=["QuickHash.json", "Thumbs.db"],
         mtime = False,
         ctime = False,
-        content = True
+        content = True,
+        version = '1.1'
     ):
-        self.progress_bar = progress_bar
         self.__hash_method = HASH_METHOD_TABLE[hash_method]
         self.blocks = blocks
         self.block_size = block_size
-        self.ignore = ignore
         self.hash_content = ''
-        self.version = "1.1"
+        self.version = version
         self.mtime = mtime
         self.ctime = ctime
         self.content = content
@@ -176,7 +166,7 @@ class QuickHash():
         assert os.path.isdir(path)
         result = {"headers": None, "dir": [], "file": OrderedDict()}
         total_dir_number = 0
-        if self.progress_bar:
+        if QuickHash.progress_bar:
             total_file_number = 0
             for i, j, k in os.walk(path):
                 total_file_number += len(k)
@@ -186,11 +176,11 @@ class QuickHash():
         min_size = self.block_size * self.blocks
         steps = self.blocks - 1
         for i in os.walk(path):
-            parent = get_relative_dir(i[0], path)
+            parent = os.path.relpath(i[0], path)
             if len(i[1]) == 0:  # 只保留最底层的目录
                 result["dir"].append(parent)
             for file in sorted(i[2]):
-                if matches_ignore(self.ignore,file):
+                if self.matches_ignore(QuickHash.ignore,file):
                     continue
                 file_path = os.path.join(i[0], file)
 
@@ -218,7 +208,7 @@ class QuickHash():
                     "size": file_size,
                     "hash": _get_file_hash(file_path, file_size),
                 }
-                if self.progress_bar:
+                if QuickHash.progress_bar:
                     tq.update()
             total_dir_number += 1
         result["dir"] = list(sorted(result["dir"]))
@@ -298,7 +288,7 @@ class QuickHash():
         assert os.path.isdir(path)
         result = {"headers": None, "dir": [], "file": OrderedDict()}
         total_dir_number = 0
-        if self.progress_bar:
+        if QuickHash.progress_bar:
             total_file_number = 0
             for i, j, k in os.walk(path):
                 total_file_number += len(k)
@@ -308,11 +298,11 @@ class QuickHash():
         min_size = self.block_size * self.blocks
         steps = self.blocks - 1
         for i in os.walk(path):
-            parent = get_relative_dir(i[0], path) # 遍历到的路径相对于`path`变量的路径
+            parent = os.path.relpath(i[0], path) # 遍历到的路径相对于`path`变量的路径
             if len(i[1]) == 0:  # 只保留最底层的目录，即保存在dir里面的目录下面都没有子目录了
                 result["dir"].append(parent)
             for file in sorted(i[2]):
-                if matches_ignore(self.ignore,file):
+                if self.matches_ignore(QuickHash.ignore,file):
                     continue
                 file_path = os.path.join(i[0], file)
 
@@ -346,7 +336,7 @@ class QuickHash():
                 if self.content:
                     temp_dict['hash'] = _get_file_hash(file_path, file_size)
                 result["file"][os.path.join(parent, file)] = temp_dict
-                if self.progress_bar:
+                if QuickHash.progress_bar:
                     tq.update()
             total_dir_number += 1
         result["dir"] = list(sorted(result["dir"]))
@@ -374,6 +364,7 @@ class QuickHash():
             self.hash_content = result
             return self
 
+
     def quick_hash(self,path:str,verify=False):
         # 用于版本控制的函数
         if self.version == "1.0":
@@ -383,25 +374,26 @@ class QuickHash():
     def to_str(self):
         '''returns a json-serialized QuickHash'''
         return json.dumps(self.hash_content, ensure_ascii=False, indent=4)
-    def from_str(self,hash_content:str|bytes):
-        '''reads a json-serialized QuickHash'''
-        if self.version == '1.0':
-            self.hash_content = json.loads(hash_content)
-            self.blocks=int(self.hash_content["headers"]["BLOCKS"])
-            self.block_size=int(self.hash_content["headers"]["BLOCK_SIZE"])
-            self.hash_method=self.hash_content["headers"]["HASH_METHOD"]
-            self.version = self.hash_content["headers"]["QuickHash_version"]
-            return self
-        elif self.version =='1.1':
-            self.hash_content = json.loads(hash_content)
-            self.blocks=int(self.hash_content["headers"]["BLOCKS"])
-            self.block_size=int(self.hash_content["headers"]["BLOCK_SIZE"])
-            self.hash_method=self.hash_content["headers"]["HASH_METHOD"]
-            self.version = self.hash_content["headers"]["QuickHash_version"]
-            self.content = self.hash_content["headers"]["content"]
-            self.mtime = self.hash_content["headers"]["mtime"]
-            self.ctime = self.hash_content["headers"]["ctime"]
-            return self
+
+    @classmethod
+    def from_str(cls,hash_content:str|bytes):
+        '''classmethod, reads a json-serialized QuickHash'''
+        hash_content = json.loads(hash_content)
+        if hash_content['headers']['QuickHash_version'] == '1.0':
+            blocks=int(hash_content["headers"]["BLOCKS"])
+            block_size=int(hash_content["headers"]["BLOCK_SIZE"])
+            hash_method=hash_content["headers"]["HASH_METHOD"]
+            version = hash_content["headers"]["QuickHash_version"]
+            return cls(blocks, block_size, hash_method, mtime, ctime, content, version)
+        elif hash_content['headers']['QuickHash_version'] =='1.1':
+            blocks=int(hash_content["headers"]["BLOCKS"])
+            block_size=int(hash_content["headers"]["BLOCK_SIZE"])
+            hash_method=hash_content["headers"]["HASH_METHOD"]
+            version = hash_content["headers"]["QuickHash_version"]
+            content = hash_content["headers"]["content"]
+            mtime = hash_content["headers"]["mtime"]
+            ctime = hash_content["headers"]["ctime"]
+            return cls(blocks, block_size, hash_method, mtime, ctime, content, version)
 
     def verify(self, path:str):
 
@@ -414,15 +406,21 @@ class QuickHash():
     def compare_with(self, hasher):
         return QuickHashCmp(self,hasher)
 
-
-
+    @staticmethod
+    def matches_ignore(ignore: list[str], dir:str):
+        ''':param ignore: Iterable, 里面的字符串是Unix shell 风格的通配pattern，例如：['*.py[cod]',r'*\desktop\*']
+        :param dir: Directory'''
+        for pattern in ignore:
+            if fnmatch.fnmatch(dir, pattern):
+                return True
+        return False
 
 if __name__ == "__main__":
-    qh1 = QuickHash(mtime=True,progress_bar=False,content=False) # initialization
+    QuickHash.progress_bar = False
+    qh1 = QuickHash(mtime=True,content=False) # initialization
     qh1.quick_hash(r"C:\Users\jenso\Desktop\新建文件夹\T1")
     str1 = qh1.to_str()
     print(str1)
-    qh2 = QuickHash()
-    qh2.from_str(str1)
+    qh2 = QuickHash.from_str(str1)
     qh2.quick_hash(r"C:\Users\jenso\Desktop\新建文件夹\T2")
     QuickHashCmp(qh1, qh2).report()
