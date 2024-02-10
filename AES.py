@@ -8,11 +8,13 @@ from hashlib import sha256
 class AES():
     '''可选绑定参数：b64；salt；result_type
     可更改参数：key，mode'''
+    @staticmethod
     def Zero_Padding(data):
         data += b'\x00'
         while len(data) % 16 != 0:
             data += b'\x00'
         return data
+    @staticmethod
     def PKCS_Padding(data):
         return data + int.to_bytes(16-(len(data)%16), byteorder='little')*(16-(len(data)%16))
 
@@ -88,7 +90,7 @@ class AES():
                 return b64encode(encrypt_aes)
         else:
             return encrypt_aes
-
+    @staticmethod
     def StripZeroPadding(data):
         data = data[:-1]
         while len(data) % 16 != 0:
@@ -96,6 +98,7 @@ class AES():
             if data[-1] != b"\x00":
                 break
         return data
+    @staticmethod
     def Strip_PKCS_Padding(data):
         return data[:-data[-1]]
     def decrypt(self, text: bytes | str, salt='This is salt', b64 = True, result_type = str, iv = None):

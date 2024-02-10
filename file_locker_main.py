@@ -1,6 +1,6 @@
 '''AES_file_locker [version 1.6.0]
 Powered by Python.
-(c)2023 Illumination Studio, Yanteen Technology,.Ltd.'''
+(c)2024 Illumination Studio, Yanteen Technology,.Ltd.'''
 from AES import AES
 from GUI import GUI
 import hashlib
@@ -24,7 +24,7 @@ CONFIG_DEFAULT = {
     'memory_cost': 2097152,
     'parallelism': 5
 }
-configuration = {  # customize your own configuration heare
+configuration = {  # customize your own configuration here
     'time_cost': 1,
     'memory_cost': 2097152,  # KiB
     'parallelism': 5
@@ -71,14 +71,6 @@ def is_encrypted(dir):
             return False
     return True
 
-
-def get_relative_dir(a, b):
-    '''获取a相对于b的路径.
-    \n例如，返回：存志群里的音频资料\音标听力\光盘1\9. 巩固练习\巩固练习 01.mp3'''
-    assert isinstance(a,str) and isinstance(b,str), "param 'a' and 'b' must be string"
-    return a.replace(b,'').strip('\\') #这种方式也许在别的操作系统上面会出现问题
-
-
 def copy_dir(path):
     '''获取这个路径下的所有文件和文件夹，使用相对路径
 
@@ -87,10 +79,10 @@ def copy_dir(path):
     directories = []
     for i in os.walk(path):
         for x in i[2]:
-            files.append(get_relative_dir(os.path.join(i[0], x), path))
+            files.append(os.path.relpath(os.path.join(i[0], x), path))
         if i[0] == path:
             continue
-        directories.append(get_relative_dir(i[0], path))
+        directories.append(os.path.relpath(i[0], path))
     return [directories, files]
 
 
@@ -174,7 +166,7 @@ def encrypt_dir(dir, master_password, ignore_check=False, config=configuration, 
     if len(files) == 0:
         print(f'WARNING: No files in {dir}!!!')
         return False
-    dirs = list(filter(lambda x: x != get_relative_dir(target_dir, dir), dirs))
+    dirs = list(filter(lambda x: x != os.path.relpath(target_dir, dir), dirs))
     aes = AES('所有侵犯隐私者将受到严惩。', 'ECB') # 创建AES实例
     aes.b64 = False
     if not os.path.isfile(os.path.join(dir, '__Status.sti')) or ignore_check:
@@ -342,7 +334,7 @@ def decrypt_dir(dir, master_password, instance=None):
               for k, v in solver.items()}  # 将解释器反向
     # 结构：{AFD文件名: (相对路径文件名, iv向量，(创建时间，修改时间，访问时间))}
     aes.mode = 'CBC'
-    with tqdm(enumerate(len_files:=glob(os.path.join(os.path.join(dir, '.__sys'), '*.afd')))) as tq:
+    with tqdm(enumerate(len_files:=glob(os.path.join(dir, '.__sys', '*.afd')))) as tq:
         if instance!= None:
             instance.pb = ttk.Progressbar(instance.root, length=instance.root.winfo_width())
             instance.pb['maximum'] = len(len_files)
@@ -358,8 +350,8 @@ def decrypt_dir(dir, master_password, instance=None):
                 try:
                     content = aes.decrypt(f.read(), iv=get[1])
                 except:
-                    warn_msg += f'WARNING: exception when encrypting: {i}, {get[0]}\n'
-                    print(f'WARNING: exception when encrypting: {i}, {get[0]}')
+                    warn_msg += f'WARNING: exception when decrypting: {i}, {get[0]}\n'
+                    print(f'WARNING: exception when decrypting: {i}, {get[0]}')
                     continue
             with open(os.path.join(dir, get[0]), 'wb') as f:
                 f.write(content)
