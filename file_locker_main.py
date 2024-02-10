@@ -131,7 +131,7 @@ def encrypt_dir(dir, master_password, ignore_check=False, argon2_config=configur
                 instance.root.update()
             for i in tq:  # 使用argon2算法，迭代一个密码消耗3秒左右
                 hasher = PasswordHasher(t,m,p)
-                key = hasher.hash(key, salt=b'This is salt').encode()
+                key = hasher.hash(key, salt=b'\xbc<\xd6\xe7\x8bm\xf3\x87\xc8\xe3\xdf@\xc2i\x9aF').encode()
                 if instance != None:
                     instance.pb['value']=i+1
                     instance.root.update()
@@ -364,7 +364,7 @@ def decrypt_dir(dir, master_password, instance=None):
                 instance.root.update()
             for i in tq:  # 使用argon2算法，迭代一个密码消耗3秒左右
                 hasher = PasswordHasher(t,m,p)
-                key = hasher.hash(key, salt=b'This is salt').encode()
+                key = hasher.hash(key, salt=b'\xbc<\xd6\xe7\x8bm\xf3\x87\xc8\xe3\xdf@\xc2i\x9aF').encode()
                 if instance != None:
                     instance.pb['value']=i+1
                     instance.root.update()
