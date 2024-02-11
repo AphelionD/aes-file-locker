@@ -15,4 +15,4 @@ AES File Locker（简称AFL）是一个基于`AES-256`对称加密算法和`argo
 
 # 加密原理
 
-![AFL加密流程](AFL%20explained_v2.png)
+![AFL加密流程](AFL%20explained.png)
