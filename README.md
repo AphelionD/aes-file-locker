@@ -1,18 +1,33 @@
-# 简介
+# Introduction
 
-AES File Locker（简称AFL）是一个基于`AES-256`对称加密算法和`argon2`哈希函数的文件加密软件。
+AES File Locker（AFL）is a file encryption program based on `argon2` hashing function and `AES-256` algorithm.
 
-# 安全特性
+# Security Features
 
-- 可以将所有文件名、目录关系全部加密
-- 防止暴力破解，暴力破解时间可最高延长为原来3000多倍（但请勿使用弱密码）
-- 移动加密后的文件，给程序正确的路径照样可以解密
-- 密码输入确认，防止加密时不小心输入与原来不同的密码导致数据不可找回。
-- 密码支持中文等特殊字符，可更改密码
-- 可自动判断是加密还是解密
-- 文件支持动态更新，每次只新加密改动过的文件
-- 每个文件拥有单独的密钥
+- It has a `tkinter` GUI interface.
+- All filenames and directory structures can be encrypted.
+- It can effectively prevent force attacks, as long as the password is strong enough.
+- Even if the encrypted file is moved, as long as the correct path is provided to the program, decryption can still be performed.
+- There is a password input confirmation feature to prevent accidentally entering a different password during encryption, which could result in data loss.
+- Passwords support special characters such as Chinese, and the password can be changed.
+- It can automatically determine whether to encrypt or decrypt.
+- Files support dynamic updates, with only the newly modified files being encrypted each time.
+Each file has its own unique key.
 
-# 加密原理
+# Encryption Process
 
-![AFL加密流程](AFL%20explained.png)
+![AFL explained](AFL%20explained.png)
+
+# requirements
+
+```
+pip install argon2-cffi
+pip install pycryptodome
+pip install rich
+pip install tqdm
+pip install pywin32
+```
+
+# Compatibility
+
+Compatible with windows and macOS. Linux is not tested.

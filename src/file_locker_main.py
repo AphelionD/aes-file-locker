@@ -1,4 +1,4 @@
-'''AES_file_locker [version 2.1]
+'''AES_file_locker [version 2.1.1]
 Powered by Python.
 (c)2024 Illumination Studio, Yanteen Technology,.Ltd.'''
 from AES import AES
@@ -14,10 +14,12 @@ from shutil import rmtree
 from tqdm import tqdm
 from base64 import b64decode
 from tkinter import ttk
-# 在mac OS 系统下无法使用pywin32
-from win32file import CreateFile, SetFileTime, GetFileTime, CloseHandle
-from win32file import GENERIC_READ, GENERIC_WRITE, OPEN_EXISTING
-from pywintypes import Time
+import sys
+if sys.platform == "win32":
+    # 在mac OS 系统下无法使用pywin32
+    from win32file import CreateFile, SetFileTime, GetFileTime, CloseHandle
+    from win32file import GENERIC_READ, GENERIC_WRITE, OPEN_EXISTING
+    from pywintypes import Time
 from Quick_Hash import QuickHash,QuickHashCmp
 from ejson import dump,dumps,load,loads
 from uuid import uuid4
@@ -98,18 +100,20 @@ def modifyFileTime(filePath, createTime=None, modifyTime=None, accessTime=None):
     :param modifyTime: 修改时间
     :param accessTime: 访问时间
     """
-    fh = CreateFile(filePath, GENERIC_READ | GENERIC_WRITE, 0, None, OPEN_EXISTING, 0, 0)
-    createTimes, accessTimes, modifyTimes = GetFileTime(fh)
-    if createTime != None:
-        createTimes = Time(createTime)
-    if accessTime != None:
-        accessTimes = Time(accessTime)
-    if modifyTime != None:
-        modifyTimes = Time(modifyTime)
-    SetFileTime(fh, createTimes, accessTimes, modifyTimes)
-    CloseHandle(fh)
+    if sys.platform == "win32":
+        fh = CreateFile(filePath, GENERIC_READ | GENERIC_WRITE, 0, None, OPEN_EXISTING, 0, 0)
+        createTimes, accessTimes, modifyTimes = GetFileTime(fh)
+        if createTime != None:
+            createTimes = Time(createTime)
+        if accessTime != None:
+            accessTimes = Time(accessTime)
+        if modifyTime != None:
+            modifyTimes = Time(modifyTime)
+        SetFileTime(fh, createTimes, accessTimes, modifyTimes)
+        CloseHandle(fh)
+    else:
     # 在macOS下应改换成：（无法更改创建时间）
-    # os.utime(filePath, (accessTime, modifyTime))
+        os.utime(filePath, (accessTime, modifyTime))
 
 def getFileTime(filename):
     '''返回：（创建时间，修改时间，访问时间）'''
