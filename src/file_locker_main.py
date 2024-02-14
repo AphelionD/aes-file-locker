@@ -138,7 +138,7 @@ def encrypt_dir(dir, master_password, ignore_check=False, argon2_config=configur
                 instance.pb.grid(row=4, column=0, columnspan=3)
                 instance.root.update()
             for i in tq:  # 使用argon2算法，迭代一个密码消耗3秒左右
-                hasher = PasswordHasher(t,m,p)
+                hasher = PasswordHasher(t,m,p,salt_len=128)
                 key = hasher.hash(key, salt=salt).encode()
                 if instance != None:
                     instance.pb['value']=i+1
@@ -217,15 +217,15 @@ def encrypt_dir(dir, master_password, ignore_check=False, argon2_config=configur
             return False
 
         salt = os.urandom(128)
-        if read_argon2_config != argon2_config:
-            # 如果函数传入的配置参数和从config.json文件中提取出来的参数不一致，则使用传入的参数重新获得stretched_key
-            stretched_key = key_derivation(
-                master_password,
-                argon2_config["time_cost"],
-                argon2_config["memory_cost"],
-                argon2_config["parallelism"],
-                salt
-            )
+        # if read_argon2_config != argon2_config:
+        # 根据新的盐重新生成密钥
+        stretched_key = key_derivation(
+            master_password,
+            argon2_config["time_cost"],
+            argon2_config["memory_cost"],
+            argon2_config["parallelism"],
+            salt
+        )
 
         updating = True
         aes.key = read_rand_key
@@ -382,7 +382,7 @@ def decrypt_dir(dir, master_password, instance=None):
                 instance.pb.grid(row=4, column=0, columnspan=3)
                 instance.root.update()
             for i in tq:  # 使用argon2算法，迭代一个密码消耗3秒左右
-                hasher = PasswordHasher(t,m,p)
+                hasher = PasswordHasher(t,m,p,salt_len=128)
                 key = hasher.hash(key, salt=salt).encode()
                 if instance != None:
                     instance.pb['value']=i+1
@@ -427,6 +427,7 @@ def decrypt_dir(dir, master_password, instance=None):
             raise Exception
     except:
         print(f'[red]ERROR: Password incorrect for {dir}!!![/red]')
+        os.remove(os.path.join(dir,'WARNING-警告！对这个文件夹下你的文件的任何修改将不被保存.txt'))
         return False
     aes.key = read_rand_key
     read_solver = aes.decrypt(read_solver['code'],iv=read_solver['iv']).decode()
