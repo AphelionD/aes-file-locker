@@ -38,8 +38,7 @@ If the encryption path and the decryption path are the same, put their path in a
 ```json
 [
     ["vault_path", "file_path"],
-    ["vault_path|file_path"],
-    ...
+    ["vault_path|file_path"]
 ]
 ```
 
