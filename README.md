@@ -2,7 +2,7 @@
 
 AES File Locker（AFL）is a file encryption program based on `argon2` hashing function and `AES-256` algorithm.
 
-# Security Features
+# Features
 
 - It has a `tkinter` GUI interface.
 - All filenames and directory structures can be encrypted.
@@ -12,7 +12,9 @@ AES File Locker（AFL）is a file encryption program based on `argon2` hashing f
 - Passwords support special characters such as Chinese, and the password can be changed.
 - It can automatically determine whether to encrypt or decrypt.
 - Files support dynamic updates, with only the newly modified files being encrypted each time.
-Each file has its own unique key.
+- Each file has its own unique key.
+- Decrypted and encrypted files can be separated. If you only want to sync encrypted files to a cloud service, this is exactly what you need!
+- The size of your files will NOT be encrypted.
 
 # Encryption Process
 
@@ -27,6 +29,20 @@ pip install rich
 pip install tqdm
 pip install pywin32
 ```
+# Usage
+
+When you run `file_locker_main.py` the first time, a `directory_settings.json` file will be generated.
+
+If the encryption path and the decryption path are the same, put their path in a one-item array. If they are different, the first item of the array should be the vault path(the path of encrypted files), and the second item should be the file path(the path of decrypted files).
+
+```json
+[
+    ["vault_path", "file_path"],
+    ["vault_path|file_path"],
+    ...
+]
+```
+
 
 # Compatibility
 
