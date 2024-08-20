@@ -285,7 +285,7 @@ def encrypt_dir(vault_dir, file_dir, master_password, ignore_check=False, argon2
     '''文件加密'''
     aes.mode = 'CBC'
     # 设置AES CBC模式
-    with tqdm(enumerate(solver.keys())) as tq:
+    with tqdm(list(enumerate(solver.keys()))) as tq:
         if instance!=None: # 进度条
             assert isinstance(instance, GUI), "param 'instance' must be a GUI instance"
             instance.info.set('encrypting...')
@@ -462,7 +462,7 @@ def decrypt_dir(vault_dir, file_dir, master_password, instance=None):
             os.makedirs(os.path.join(file_dir, i))
 
     aes.mode = 'CBC'
-    with tqdm(enumerate(len_files:=glob(os.path.join(vault_dir, '.__sys', '*.afd')))) as tq:
+    with tqdm(list(enumerate(len_files:=glob(os.path.join(vault_dir, '.__sys', '*.afd'))))) as tq:
         if instance!= None:
             instance.pb = ttk.Progressbar(instance.root, length=instance.root.winfo_width())
             instance.pb['maximum'] = len(len_files)

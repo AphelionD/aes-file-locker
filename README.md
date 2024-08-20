@@ -13,7 +13,7 @@ AES File Locker（AFL）is a file encryption program based on `argon2` hashing f
 - It can automatically determine whether to encrypt or decrypt.
 - Files support dynamic updates, with only the newly modified files being encrypted each time.
 - Each file has its own unique key.
-- Decrypted and encrypted files can be separated. If you only want to sync encrypted files to a cloud service, this is exactly what you need!
+- Decrypted and encrypted files can be separated. This is especially useful if you only want to sync encrypted files to a cloud service.
 - The size of your files will NOT be encrypted.
 
 # Encryption Process
