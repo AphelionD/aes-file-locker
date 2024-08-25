@@ -16,7 +16,7 @@ class AES():
         return data
     @staticmethod
     def PKCS_Padding(data):
-        return data + int.to_bytes(16-(len(data)%16), byteorder='little')*(16-(len(data)%16))
+        return data + int.to_bytes(16-(len(data)%16), 1,byteorder='little')*(16-(len(data)%16))
 
     def __init__(self, key, mode = 'ECB', packing_mode = 'PKCS', encoding = 'utf-8') -> None:
         self.__encoding = encoding
@@ -65,7 +65,7 @@ class AES():
             raise ValueError('AES mode can only be ECB or CBC')
 
 
-    def encrypt(self, text: bytes | str, salt='This is salt', b64 = True, result_type = str, iv = None):
+    def encrypt(self, text, salt='This is salt', b64 = True, result_type = str, iv = None):
         '''text: 自动判断是bytes还是str
 
         如果b64为True，返回base64调制后的结果，可选择返回str或bytes（result_type）。若b64为False，返回bytes'''
@@ -101,7 +101,7 @@ class AES():
     @staticmethod
     def Strip_PKCS_Padding(data):
         return data[:-data[-1]]
-    def decrypt(self, text: bytes | str, salt='This is salt', b64 = True, result_type = str, iv = None):
+    def decrypt(self, text, salt='This is salt', b64 = True, result_type = str, iv = None):
         '''key: 自动判断是bytes还是str
 
         如果b64为True，自动判断text是bytes还是str。若b64为False，请传入bytes，且返回bytes。'''
@@ -144,7 +144,7 @@ if __name__=='__main__':
     aes.b64 = False
     b = aes.encrypt(a)
     print(b)
-    aes.key = 'hello'
+    aes.key = 'password'
     c = aes.decrypt(b).decode('utf-8')
     print(c)
     assert a == c

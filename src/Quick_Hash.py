@@ -378,8 +378,9 @@ class QuickHash():
         return ejson.dumps(self.hash_content, ensure_ascii=False, indent=4)
 
     @classmethod
-    def from_str(cls,hash_content:str|bytes):
-        '''classmethod, reads a json-serialized QuickHash'''
+    def from_str(cls,hash_content):
+        '''classmethod, reads a json-serialized QuickHash
+        :param hash_content: bytes or str'''
         hash_content = ejson.loads(hash_content)
         if hash_content['headers']['QuickHash_version'] == '1.0':
             blocks=int(hash_content["headers"]["BLOCKS"])
