@@ -191,6 +191,9 @@
         <family>微软雅黑</family>
        </font>
       </property>
+      <property name="toolTip">
+       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+      </property>
       <property name="whatsThis">
        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;解密后的文件会放在这里&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
       </property>
@@ -281,7 +284,7 @@
      <x>0</x>
      <y>0</y>
      <width>447</width>
-     <height>22</height>
+     <height>23</height>
     </rect>
    </property>
   </widget>

@@ -1,8 +1,9 @@
 import sys
 from PyQt5.QtWidgets import QMainWindow,QApplication,QLineEdit,QMessageBox, QFileDialog
-from Ui_main_window_2 import Ui_MainWindow
+from Ui_main_window import Ui_MainWindow
 from Ui_vault_config_window import Ui_MainWindowVaultConfig
 from PyQt5.QtCore import QThread, pyqtSignal
+import file_locker_main
 import time
 import random
 from ejson import dump,dumps,load,loads
@@ -14,7 +15,7 @@ class MainWindowVaultConfig(QMainWindow, Ui_MainWindowVaultConfig):
     def __init__(self, parent = None, vault_name = "", vault_path = "", file_path = ""):
         super(MainWindowVaultConfig,self).__init__(parent)
         self.setupUi(self)
-        self.resize(850,450)
+        self.resize(550,450)
         self.original_vault_name = vault_name
         self.vault_path = vault_path
         self.file_path = file_path
@@ -82,6 +83,7 @@ class MainWindowVaultConfig(QMainWindow, Ui_MainWindowVaultConfig):
         self.vault_path = QFileDialog.getExistingDirectory(self, "选择加密文件夹路径", "./")
         self.vaultPathEdit.setText(self.vault_path)
         if self.file_path == "":
+            # 如果用户没有设置file path，那么缺省是将file path和vault path设成相同
             self.file_path = self.vault_path
             self.filePathEdit.setText(self.file_path)
     def showWarningMsg(self,msg):
@@ -96,12 +98,37 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         app_config = load(open("app_config.json",'r',encoding='utf8'))
         for i in app_config:
             self.vaultList.addItem(i)
+        # 隐藏警告信息
         self.progressBar.hide()
         self.progressBar.reset()
         self.progressBar.setRange(0,3)
+        self.vaultPathReminderLabel.hide()
+        self.filePathReminderLabel.hide()
 
-    def enableVaultConfigWidget(self):
+    def updateVaultInfo(self):
         self.vaultConfigWidget.setEnabled(True)
+        self.vaultInfoWidget.setEnabled(True)
+        self.vault_name = self.vaultList.currentItem().text()
+        self.vaultNameLabel.setText("密码库：%s" % self.vault_name)
+        self.vault_path = app_config[self.vault_name]['vault_path']
+        if not os.path.isdir(self.vault_path):
+            # 如果加密目录不存在，显示警告
+            self.vaultPathReminderLabel.show()
+            self.passwordInputWidget.setEnabled(False)
+        else:
+            self.file_path = app_config[self.vault_name]['file_path']
+            self.vaultPathLabel.setText(f"密码库路径：{self.vault_path}")
+            self.filePathLabel.setText(f"解密文件夹路径：{self.file_path}")
+            self.vaultPathReminderLabel.hide()
+            self.filePathReminderLabel.hide()
+            self.passwordInputWidget.setEnabled(True)
+            if self.vault_path != self.file_path:
+                # 库文分离
+                is_encrypted = not os.path.isdir(self.file_path)
+            else:
+                is_encrypted = file_locker_main.is_encrypted(self.vault_path)
+            self.vaultNameLabel.setText("密码库：%s（已%s）" % (self.vault_name, "加密" if is_encrypted else "解密"))
+
     def update_password_echo_mode(self, bool):
         """showPassword - toggled(bool)的槽函数"""
         if bool:
@@ -112,11 +139,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.passwordTwiceEdit.setEchoMode(QLineEdit.Password)
 
     def update_path(self,name, vault_path,file_path):
+        """接收到子窗口传来的信号后，更新文件路径与密码库名称"""
         if name != self.vaultList.currentItem().text():
             self.vaultList.currentItem().setText(name)
         self.vault_path = vault_path
         self.file_path = file_path
-        # 待编写：更新vault info
+        self.updateVaultInfo()
     def launchVaultWin(self):
         global app_config
         vault_name = self.vaultList.currentItem().text()

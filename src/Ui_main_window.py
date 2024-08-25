@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'c:\华为家庭存储\多媒体、计算机文件\编程\aes-file-locker\src\main_window_2.ui'
+# Form implementation generated from reading ui file 'c:\华为家庭存储\多媒体、计算机文件\编程\aes-file-locker\src\main_window.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.9
 #
@@ -14,7 +14,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(819, 421)
+        MainWindow.resize(819, 425)
         font = QtGui.QFont()
         font.setFamily("微软雅黑")
         MainWindow.setFont(font)
@@ -44,6 +44,7 @@ class Ui_MainWindow(object):
         self.addVaultButton.setObjectName("addVaultButton")
         self.gridLayout.addWidget(self.addVaultButton, 4, 1, 1, 1)
         self.vaultInfoWidget = QtWidgets.QWidget(self.centralwidget)
+        self.vaultInfoWidget.setEnabled(False)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -74,7 +75,7 @@ class Ui_MainWindow(object):
         self.gridLayout_3 = QtWidgets.QGridLayout(self.passwordInputWidget)
         self.gridLayout_3.setObjectName("gridLayout_3")
         self.progressBar = QtWidgets.QProgressBar(self.passwordInputWidget)
-        self.progressBar.setEnabled(True)
+        self.progressBar.setEnabled(False)
         font = QtGui.QFont()
         font.setFamily("微软雅黑")
         self.progressBar.setFont(font)
@@ -177,7 +178,7 @@ class Ui_MainWindow(object):
         self.gridLayout.addWidget(self.vaultConfigWidget, 2, 5, 3, 1)
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 819, 22))
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 819, 26))
         self.menubar.setObjectName("menubar")
         MainWindow.setMenuBar(self.menubar)
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
@@ -187,7 +188,7 @@ class Ui_MainWindow(object):
         self.retranslateUi(MainWindow)
         self.showPassword.toggled['bool'].connect(MainWindow.update_password_echo_mode) # type: ignore
         self.vaultSettings.clicked.connect(MainWindow.launchVaultWin) # type: ignore
-        self.vaultList.itemClicked['QListWidgetItem*'].connect(MainWindow.enableVaultConfigWidget) # type: ignore
+        self.vaultList.itemClicked['QListWidgetItem*'].connect(MainWindow.updateVaultInfo) # type: ignore
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
