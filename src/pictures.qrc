@@ -1,5 +1,5 @@
 <RCC>
   <qresource prefix="link">
-    <file>链接.svg</file>
+    <file>link.svg</file>
   </qresource>
 </RCC>

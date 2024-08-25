@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>819</width>
-    <height>381</height>
+    <height>421</height>
    </rect>
   </property>
   <property name="font">
@@ -279,6 +279,9 @@
     </item>
     <item row="2" column="5" rowspan="3">
      <widget class="QWidget" name="vaultConfigWidget" native="true">
+      <property name="enabled">
+       <bool>false</bool>
+      </property>
       <property name="font">
        <font>
         <family>微软雅黑</family>
@@ -360,17 +363,51 @@
    <slot>update_password_echo_mode(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>423</x>
-     <y>271</y>
+     <x>364</x>
+     <y>281</y>
     </hint>
     <hint type="destinationlabel">
      <x>389</x>
-     <y>381</y>
+     <y>380</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>vaultSettings</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>launchVaultWin()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>758</x>
+     <y>57</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>717</x>
+     <y>22</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>vaultList</sender>
+   <signal>itemClicked(QListWidgetItem*)</signal>
+   <receiver>MainWindow</receiver>
+   <slot>enableVaultConfigWidget()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>261</x>
+     <y>63</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>233</x>
+     <y>27</y>
     </hint>
    </hints>
   </connection>
  </connections>
  <slots>
   <slot>update_password_echo_mode(bool)</slot>
+  <slot>launchVaultWin()</slot>
+  <slot>enableVaultConfigWidget()</slot>
  </slots>
 </ui>

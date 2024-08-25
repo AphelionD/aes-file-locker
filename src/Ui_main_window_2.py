@@ -14,7 +14,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(849, 404)
+        MainWindow.resize(819, 421)
         font = QtGui.QFont()
         font.setFamily("微软雅黑")
         MainWindow.setFont(font)
@@ -23,6 +23,7 @@ class Ui_MainWindow(object):
         self.gridLayout = QtWidgets.QGridLayout(self.centralwidget)
         self.gridLayout.setObjectName("gridLayout")
         self.vaultList = QtWidgets.QListWidget(self.centralwidget)
+        self.vaultList.setMaximumSize(QtCore.QSize(300, 16777215))
         font = QtGui.QFont()
         font.setFamily("微软雅黑")
         self.vaultList.setFont(font)
@@ -48,7 +49,7 @@ class Ui_MainWindow(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.vaultInfoWidget.sizePolicy().hasHeightForWidth())
         self.vaultInfoWidget.setSizePolicy(sizePolicy)
-        self.vaultInfoWidget.setMinimumSize(QtCore.QSize(30, 0))
+        self.vaultInfoWidget.setMinimumSize(QtCore.QSize(0, 0))
         font = QtGui.QFont()
         font.setFamily("微软雅黑")
         self.vaultInfoWidget.setFont(font)
@@ -59,6 +60,7 @@ class Ui_MainWindow(object):
         font = QtGui.QFont()
         font.setFamily("微软雅黑")
         self.vaultPathReminderLabel.setFont(font)
+        self.vaultPathReminderLabel.setStyleSheet("color:rgb(170, 0, 0)")
         self.vaultPathReminderLabel.setObjectName("vaultPathReminderLabel")
         self.gridLayout_2.addWidget(self.vaultPathReminderLabel, 2, 0, 1, 1)
         spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
@@ -72,10 +74,11 @@ class Ui_MainWindow(object):
         self.gridLayout_3 = QtWidgets.QGridLayout(self.passwordInputWidget)
         self.gridLayout_3.setObjectName("gridLayout_3")
         self.progressBar = QtWidgets.QProgressBar(self.passwordInputWidget)
+        self.progressBar.setEnabled(True)
         font = QtGui.QFont()
         font.setFamily("微软雅黑")
         self.progressBar.setFont(font)
-        self.progressBar.setProperty("value", 24)
+        self.progressBar.setProperty("value", 0)
         self.progressBar.setObjectName("progressBar")
         self.gridLayout_3.addWidget(self.progressBar, 5, 0, 1, 2)
         self.passwordLabel = QtWidgets.QLabel(self.passwordInputWidget)
@@ -142,10 +145,12 @@ class Ui_MainWindow(object):
         font = QtGui.QFont()
         font.setFamily("微软雅黑")
         self.filePathReminderLabel.setFont(font)
+        self.filePathReminderLabel.setStyleSheet("color:rgb(170, 0, 0)")
         self.filePathReminderLabel.setObjectName("filePathReminderLabel")
         self.gridLayout_2.addWidget(self.filePathReminderLabel, 4, 0, 1, 1)
         self.gridLayout.addWidget(self.vaultInfoWidget, 2, 4, 3, 1)
         self.vaultConfigWidget = QtWidgets.QWidget(self.centralwidget)
+        self.vaultConfigWidget.setEnabled(False)
         font = QtGui.QFont()
         font.setFamily("微软雅黑")
         self.vaultConfigWidget.setFont(font)
@@ -172,7 +177,7 @@ class Ui_MainWindow(object):
         self.gridLayout.addWidget(self.vaultConfigWidget, 2, 5, 3, 1)
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 849, 22))
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 819, 22))
         self.menubar.setObjectName("menubar")
         MainWindow.setMenuBar(self.menubar)
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
@@ -181,6 +186,8 @@ class Ui_MainWindow(object):
 
         self.retranslateUi(MainWindow)
         self.showPassword.toggled['bool'].connect(MainWindow.update_password_echo_mode) # type: ignore
+        self.vaultSettings.clicked.connect(MainWindow.launchVaultWin) # type: ignore
+        self.vaultList.itemClicked['QListWidgetItem*'].connect(MainWindow.enableVaultConfigWidget) # type: ignore
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
@@ -189,7 +196,7 @@ class Ui_MainWindow(object):
         self.addVaultButton.setText(_translate("MainWindow", "添加密码库"))
         self.vaultPathReminderLabel.setText(_translate("MainWindow", "密码库路径不存在！"))
         self.passwordLabel.setText(_translate("MainWindow", "请输入密码"))
-        self.progressReminder.setText(_translate("MainWindow", "两次输入的密码不相同"))
+        self.progressReminder.setText(_translate("MainWindow", "两次输入的密码不相同!"))
         self.pushButton_2.setText(_translate("MainWindow", "解密"))
         self.passwordTwiceLabel.setText(_translate("MainWindow", "请再次输入密码"))
         self.showPassword.setText(_translate("MainWindow", "显示密码"))
