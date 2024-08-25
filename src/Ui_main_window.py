@@ -181,9 +181,10 @@ class Ui_MainWindow(object):
 
         self.retranslateUi(MainWindow)
         self.showPassword.toggled['bool'].connect(MainWindow.update_password_echo_mode) # type: ignore
-        self.vaultSettings.clicked.connect(MainWindow.launchVaultWin) # type: ignore
         self.vaultList.itemClicked['QListWidgetItem*'].connect(MainWindow.updateVaultInfo) # type: ignore
         self.delVault.clicked.connect(MainWindow.deleteVault) # type: ignore
+        self.addVaultButton.clicked.connect(MainWindow.addVault) # type: ignore
+        self.vaultSettings.clicked.connect(MainWindow.editVaultSettings) # type: ignore
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):

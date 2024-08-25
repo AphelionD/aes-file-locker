@@ -367,22 +367,6 @@
    </hints>
   </connection>
   <connection>
-   <sender>vaultSettings</sender>
-   <signal>clicked()</signal>
-   <receiver>MainWindow</receiver>
-   <slot>launchVaultWin()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>758</x>
-     <y>57</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>717</x>
-     <y>22</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
    <sender>vaultList</sender>
    <signal>itemClicked(QListWidgetItem*)</signal>
    <receiver>MainWindow</receiver>
@@ -414,6 +398,38 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>addVaultButton</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>addVault()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>172</x>
+     <y>382</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>173</x>
+     <y>400</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>vaultSettings</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>editVaultSettings()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>757</x>
+     <y>59</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>812</x>
+     <y>35</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>update_password_echo_mode(bool)</slot>
@@ -421,5 +437,7 @@
   <slot>enableVaultConfigWidget()</slot>
   <slot>updateVaultInfo()</slot>
   <slot>deleteVault()</slot>
+  <slot>addVault()</slot>
+  <slot>editVaultSettings()</slot>
  </slots>
 </ui>

@@ -11,59 +11,84 @@ import os
 
 app_config = None
 class MainWindowVaultConfig(QMainWindow, Ui_MainWindowVaultConfig):
-    path_updated = pyqtSignal(str,str,str)
-    def __init__(self, parent = None, vault_name = "", vault_path = "", file_path = ""):
-        super(MainWindowVaultConfig,self).__init__(parent)
-        self.setupUi(self)
-        self.resize(550,450)
+    path_updated = pyqtSignal(str,str,str,bool) # 信号，用于通知主窗口更新密码库信息。参数：vault_name,vault_path,file_path,editting
+    def __init__(self, parent=None, vault_name="", vault_path="", file_path="", editting=False):
+        """
+        初始化MainWindowVaultConfig类的构造函数。
+
+        参数:
+        - parent: 父窗口，默认为None。
+        - vault_name: 保险库名称，默认为空字符串。
+        - vault_path: 保险库路径，默认为空字符串。
+        - file_path: 文件路径，默认为空字符串。
+        - editting: 是否为编辑密码库，决定是否替换在app_config中的设置，默认为True。
+
+        该构造函数用于初始化保险库配置窗口的基本设置和界面布局。
+        """
+        super(MainWindowVaultConfig, self).__init__(parent)  # 调用父类构造函数
+        self.setupUi(self)  # 初始化界面设置
+        self.resize(550, 450)  # 调整窗口大小
+
+        # 保存传入的参数
         self.original_vault_name = vault_name
         self.vault_path = vault_path
         self.file_path = file_path
+        self.editting = editting
+        if not self.editting:
+            # 如果是新建密码库，所有项都是空的，而程序第一次运行不会执行合法性检查，所以默认应该设置为不可用
+            self.OKButton.setEnabled(False)
+
+        # 根据保险库路径和文件路径的比较结果来决定是否显示链接标签
         if vault_path != file_path:
             self.link_label.hide()
+
+        # 设置各个编辑框的初始值
         self.VaultNameEdit.setText(vault_name)
         self.vaultPathEdit.setText(vault_path)
         self.filePathEdit.setText(file_path)
+
+        # 隐藏提醒标签，根据后续逻辑需要决定是否显示
         self.vaultNameReminder.hide()
         self.vaultPathReminder.hide()
         self.filePathReminder.hide()
 
-    def checkVaultNameValidity(self):
+    def checkVaultSettingsValidity(self):
+        """更新路径检查提示，更新link图标"""
+        flag = True # flag必须通过全部检查点才可以变成True
         if self.VaultNameEdit.text() == "":
             self.vaultNameReminder.show()
             self.vaultNameReminder.setText("密码库名称不能为空！")
-            self.OKButton.setEnabled(False)
+            flag = False
         elif self.VaultNameEdit.text() in app_config and self.VaultNameEdit.text() != self.original_vault_name:
             self.vaultNameReminder.show()
             self.vaultNameReminder.setText("密码库名称已存在！")
-            self.OKButton.setEnabled(False)
-
+            flag = False
         else:
             self.vaultNameReminder.hide()
-            self.OKButton.setEnabled(True)
-    def updateLinkIcon(self):
         self.vault_path = self.vaultPathEdit.text()
         self.file_path = self.filePathEdit.text()
         if os.path.isdir(self.vault_path):
             self.vaultPathReminder.hide()
         else:
             self.vaultPathReminder.show()
-        if os.path.isdir(self.file_path):
+        if os.path.isdir(os.path.split(self.file_path)[0]):
             self.filePathReminder.hide()
         else:
             self.filePathReminder.show()
-        if os.path.isdir(self.vault_path) and os.path.isdir(self.file_path):
+        if os.path.isdir(self.vault_path) and os.path.isdir(os.path.split(self.file_path)[0]):
             if self.vault_path == self.file_path:
                 self.link_label.show()
             else:
                 self.link_label.hide()
-            self.OKButton.setEnabled(True)
         else:
-            self.OKButton.setEnabled(False)
+            flag = False
+        self.OKButton.setEnabled(flag)
     def vaultConfigExecute(self):
+        """vault_config完成，OK按钮被点击，保存相应的设置"""
         global app_config
         if self.VaultNameEdit.text() != self.original_vault_name:
-            del app_config[self.original_vault_name]
+            if self.editting:
+                del app_config[self.original_vault_name]
             app_config[self.VaultNameEdit.text()] = {
                 "vault_path": self.vault_path,
                 "file_path": self.file_path
@@ -74,7 +99,7 @@ class MainWindowVaultConfig(QMainWindow, Ui_MainWindowVaultConfig):
                 "file_path": self.file_path
             }
         dump(app_config,open("app_config.json",'w',encoding='utf8'))
-        self.path_updated.emit(self.VaultNameEdit.text(),self.vault_path,self.file_path)
+        self.path_updated.emit(self.VaultNameEdit.text(),self.vault_path,self.file_path, self.editting)
         self.close()
 
     def chooseFilePath(self):
@@ -144,10 +169,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.passwordEdit.setEchoMode(QLineEdit.Password)
             self.passwordTwiceEdit.setEchoMode(QLineEdit.Password)
 
-    def update_path(self, name, vault_path,file_path):
+    def update_path(self, name, vault_path,file_path, editting):
         """接收到子窗口传来的信号后，更新文件路径与密码库名称"""
-        if name != self.vaultList.currentItem().text():
-            self.vaultList.currentItem().setText(name) # 修改了列表里面的密码库名称，就不用修改info界面的密码库名称了，因为updateVaultInfo方法会自动按照vaultList里面的名称修改
+        if not editting:
+            # 如果是新建的密码库
+            self.vaultList.addItem(name)
+            item = self.vaultList.item(self.vaultList.count() - 1)
+            self.vaultList.setCurrentItem(item)
+        elif len(self.vaultList.selectedItems())>0:
+            # 如果有选中的密码库
+            if name != self.vaultList.currentItem().text():
+                self.vaultList.currentItem().setText(name) # 修改了列表里面的密码库名称，就不用修改info界面的密码库名称了，因为updateVaultInfo方法会自动按照vaultList里面的名称修改
         self.vault_path = vault_path
         self.file_path = file_path
         self.updateVaultInfo()
@@ -156,13 +188,20 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         return QMessageBox.warning(self, '删除密码库', msg, QMessageBox.Yes|QMessageBox.Cancel,QMessageBox.Cancel)
         # 待优化：改成中文
 
-    def launchVaultWin(self):
+    def editVaultSettings(self):
         """槽函数：运行子窗口"""
         global app_config
         vault_name = self.vaultList.currentItem().text()
-        self.myVaultWin = MainWindowVaultConfig(self,vault_name, app_config[vault_name]['vault_path'],app_config[vault_name]['file_path'])
+        self.myVaultWin = MainWindowVaultConfig(self,vault_name, app_config[vault_name]['vault_path'],app_config[vault_name]['file_path'], True)
         self.myVaultWin.path_updated.connect(self.update_path)
         # myVaultWin一定要加self
+        self.myVaultWin.show()
+
+    def addVault(self):
+        """槽函数：新建密码库"""
+        global app_config
+        self.myVaultWin = MainWindowVaultConfig(self)
+        self.myVaultWin.path_updated.connect(self.update_path)
         self.myVaultWin.show()
 
     def deleteVault(self):

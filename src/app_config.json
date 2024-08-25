@@ -1,6 +1,14 @@
 {
-    "hello": {
-        "vault_path": "C:\\Users\\jenso\\Desktop\\测试文件夹",
-        "file_path": "C:\\Users\\jenso\\Desktop\\测试文件夹"
+    "更懂": {
+        "vault_path": "C:/Users/jenso/Desktop/测试文件夹",
+        "file_path": "C:/Users/jenso/Desktop/测试文件夹"
+    },
+    "跟东哥": {
+        "vault_path": "C:/Users/jenso/Desktop/测试文件夹 (1)",
+        "file_path": "C:/Users/jenso/Desktop/测试文件夹 (1)"
+    },
+    "西方哲学十五讲": {
+        "vault_path": "C:/Users/jenso/Desktop/西方哲学十五讲",
+        "file_path": "C:/Users/jenso/Desktop/西方哲学十五讲"
     }
 }

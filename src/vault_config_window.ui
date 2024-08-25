@@ -36,32 +36,20 @@
     <property name="verticalSpacing">
      <number>5</number>
     </property>
-    <item row="0" column="0">
-     <widget class="QLabel" name="vaultNameLabel">
+    <item row="5" column="2">
+     <widget class="QToolButton" name="filePathToolButton">
       <property name="font">
        <font>
         <family>微软雅黑</family>
        </font>
-      </property>
-      <property name="whatsThis">
-       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;为你的密码库取一个名称，便于记忆&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
       </property>
       <property name="text">
-       <string>密码库名称</string>
+       <string>...</string>
       </property>
      </widget>
     </item>
-    <item row="0" column="1">
-     <widget class="QLineEdit" name="VaultNameEdit">
-      <property name="font">
-       <font>
-        <family>微软雅黑</family>
-       </font>
-      </property>
-     </widget>
-    </item>
-    <item row="1" column="0">
-     <widget class="QLabel" name="vaultNameReminder">
+    <item row="6" column="0" colspan="2">
+     <widget class="QLabel" name="filePathReminder">
       <property name="sizePolicy">
        <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
         <horstretch>0</horstretch>
@@ -79,11 +67,29 @@
        <string notr="true">color:rgb(170, 0, 0)</string>
       </property>
       <property name="text">
-       <string>密码库名称已存在！</string>
+       <string>解密文件夹路径不合法！其上级目录必须存在</string>
       </property>
      </widget>
     </item>
-    <item row="2" column="0">
+    <item row="7" column="1" alignment="Qt::AlignRight">
+     <widget class="QPushButton" name="pushButton">
+      <property name="maximumSize">
+       <size>
+        <width>120</width>
+        <height>16777215</height>
+       </size>
+      </property>
+      <property name="font">
+       <font>
+        <family>微软雅黑</family>
+       </font>
+      </property>
+      <property name="text">
+       <string>关闭</string>
+      </property>
+     </widget>
+    </item>
+    <item row="3" column="0">
      <widget class="QLabel" name="vaultPathLabel">
       <property name="font">
        <font>
@@ -98,51 +104,56 @@
       </property>
      </widget>
     </item>
-    <item row="2" column="1">
-     <widget class="QLineEdit" name="vaultPathEdit">
+    <item row="5" column="0">
+     <widget class="QLabel" name="filePathLabel">
       <property name="font">
        <font>
         <family>微软雅黑</family>
        </font>
       </property>
+      <property name="toolTip">
+       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;解密文件夹路径的上级目录应该是一个合法目录&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+      </property>
+      <property name="whatsThis">
+       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;解密后的文件会放在这里&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+      </property>
+      <property name="text">
+       <string>解密文件夹路径</string>
+      </property>
      </widget>
     </item>
-    <item row="2" column="2">
-     <widget class="QToolButton" name="vaultPathToolButton">
+    <item row="7" column="0">
+     <widget class="QPushButton" name="OKButton">
       <property name="font">
        <font>
         <family>微软雅黑</family>
        </font>
       </property>
       <property name="text">
-       <string>...</string>
+       <string>确定</string>
       </property>
      </widget>
     </item>
-    <item row="3" column="0">
-     <widget class="QLabel" name="vaultPathReminder">
+    <item row="2" column="0" colspan="3">
+     <widget class="QLabel" name="hintLabel">
       <property name="sizePolicy">
        <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
         <horstretch>0</horstretch>
         <verstretch>0</verstretch>
        </sizepolicy>
       </property>
-      <property name="font">
-       <font>
-        <family>微软雅黑</family>
-        <weight>75</weight>
-        <bold>true</bold>
-       </font>
-      </property>
-      <property name="styleSheet">
-       <string notr="true">color:rgb(170, 0, 0)</string>
-      </property>
       <property name="text">
-       <string>密码库路径不存在！</string>
+       <string>如果密码库和解密文件夹路径相同，加密文件将会与您的解密文件放在一起，请您不要改动加密相关的文件。如果设置为不同的路径，密码库路径请您选择一个空文件夹或者选择已加密的密码库文件夹。</string>
+      </property>
+      <property name="wordWrap">
+       <bool>true</bool>
+      </property>
+      <property name="indent">
+       <number>-1</number>
       </property>
      </widget>
     </item>
-    <item row="3" column="1" alignment="Qt::AlignHCenter">
+    <item row="4" column="1" alignment="Qt::AlignHCenter">
      <widget class="QLabel" name="link_label">
       <property name="sizePolicy">
        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
@@ -184,35 +195,8 @@
       </property>
      </widget>
     </item>
-    <item row="4" column="0">
-     <widget class="QLabel" name="filePathLabel">
-      <property name="font">
-       <font>
-        <family>微软雅黑</family>
-       </font>
-      </property>
-      <property name="toolTip">
-       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-      </property>
-      <property name="whatsThis">
-       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;解密后的文件会放在这里&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-      </property>
-      <property name="text">
-       <string>解密文件夹路径</string>
-      </property>
-     </widget>
-    </item>
-    <item row="4" column="1">
-     <widget class="QLineEdit" name="filePathEdit">
-      <property name="font">
-       <font>
-        <family>微软雅黑</family>
-       </font>
-      </property>
-     </widget>
-    </item>
-    <item row="4" column="2">
-     <widget class="QToolButton" name="filePathToolButton">
+    <item row="3" column="2">
+     <widget class="QToolButton" name="vaultPathToolButton">
       <property name="font">
        <font>
         <family>微软雅黑</family>
@@ -223,8 +207,41 @@
       </property>
      </widget>
     </item>
-    <item row="5" column="0" colspan="2">
-     <widget class="QLabel" name="filePathReminder">
+    <item row="0" column="0">
+     <widget class="QLabel" name="vaultNameLabel">
+      <property name="font">
+       <font>
+        <family>微软雅黑</family>
+       </font>
+      </property>
+      <property name="whatsThis">
+       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;为你的密码库取一个名称，便于记忆&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+      </property>
+      <property name="text">
+       <string>密码库名称</string>
+      </property>
+     </widget>
+    </item>
+    <item row="0" column="1">
+     <widget class="QLineEdit" name="VaultNameEdit">
+      <property name="font">
+       <font>
+        <family>微软雅黑</family>
+       </font>
+      </property>
+     </widget>
+    </item>
+    <item row="3" column="1">
+     <widget class="QLineEdit" name="vaultPathEdit">
+      <property name="font">
+       <font>
+        <family>微软雅黑</family>
+       </font>
+      </property>
+     </widget>
+    </item>
+    <item row="4" column="0">
+     <widget class="QLabel" name="vaultPathReminder">
       <property name="sizePolicy">
        <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
         <horstretch>0</horstretch>
@@ -242,37 +259,39 @@
        <string notr="true">color:rgb(170, 0, 0)</string>
       </property>
       <property name="text">
-       <string>解密文件夹路径不存在！</string>
+       <string>密码库路径不存在！</string>
       </property>
      </widget>
     </item>
-    <item row="6" column="0">
-     <widget class="QPushButton" name="OKButton">
+    <item row="5" column="1">
+     <widget class="QLineEdit" name="filePathEdit">
       <property name="font">
        <font>
         <family>微软雅黑</family>
        </font>
       </property>
-      <property name="text">
-       <string>确定</string>
-      </property>
      </widget>
     </item>
-    <item row="6" column="1" alignment="Qt::AlignRight">
-     <widget class="QPushButton" name="pushButton">
-      <property name="maximumSize">
-       <size>
-        <width>120</width>
-        <height>16777215</height>
-       </size>
+    <item row="1" column="0">
+     <widget class="QLabel" name="vaultNameReminder">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
       </property>
       <property name="font">
        <font>
         <family>微软雅黑</family>
+        <weight>75</weight>
+        <bold>true</bold>
        </font>
       </property>
+      <property name="styleSheet">
+       <string notr="true">color:rgb(170, 0, 0)</string>
+      </property>
       <property name="text">
-       <string>关闭</string>
+       <string>密码库名称已存在！</string>
       </property>
      </widget>
     </item>
@@ -295,46 +314,14 @@
  </resources>
  <connections>
   <connection>
-   <sender>vaultPathEdit</sender>
-   <signal>textChanged(QString)</signal>
-   <receiver>MainWindowVaultConfig</receiver>
-   <slot>updateLinkIcon()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>308</x>
-     <y>148</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>392</x>
-     <y>191</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>filePathEdit</sender>
-   <signal>textChanged(QString)</signal>
-   <receiver>MainWindowVaultConfig</receiver>
-   <slot>updateLinkIcon()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>258</x>
-     <y>216</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>387</x>
-     <y>312</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
    <sender>vaultPathToolButton</sender>
    <signal>clicked()</signal>
    <receiver>MainWindowVaultConfig</receiver>
    <slot>chooseVaultPath()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>399</x>
-     <y>145</y>
+     <x>406</x>
+     <y>202</y>
     </hint>
     <hint type="destinationlabel">
      <x>426</x>
@@ -349,28 +336,12 @@
    <slot>chooseVaultPath()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>397</x>
-     <y>221</y>
+     <x>406</x>
+     <y>267</y>
     </hint>
     <hint type="destinationlabel">
      <x>430</x>
      <y>248</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>VaultNameEdit</sender>
-   <signal>textChanged(QString)</signal>
-   <receiver>MainWindowVaultConfig</receiver>
-   <slot>checkVaultNameValidity()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>203</x>
-     <y>76</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>261</x>
-     <y>36</y>
     </hint>
    </hints>
   </connection>
@@ -381,8 +352,8 @@
    <slot>close()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>319</x>
-     <y>295</y>
+     <x>376</x>
+     <y>321</y>
     </hint>
     <hint type="destinationlabel">
      <x>322</x>
@@ -406,12 +377,60 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>VaultNameEdit</sender>
+   <signal>textChanged(QString)</signal>
+   <receiver>MainWindowVaultConfig</receiver>
+   <slot>checkVaultSettingsValidity()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>293</x>
+     <y>66</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>417</x>
+     <y>66</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>vaultPathEdit</sender>
+   <signal>textChanged(QString)</signal>
+   <receiver>MainWindowVaultConfig</receiver>
+   <slot>checkVaultSettingsValidity()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>336</x>
+     <y>193</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>360</x>
+     <y>211</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>filePathEdit</sender>
+   <signal>textChanged(QString)</signal>
+   <receiver>MainWindowVaultConfig</receiver>
+   <slot>checkVaultSettingsValidity()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>337</x>
+     <y>262</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>415</x>
+     <y>287</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>updateLinkIcon()</slot>
   <slot>chooseVaultPath()</slot>
   <slot>chooseFilePath()</slot>
-  <slot>checkVaultNameValidity()</slot>
+  <slot>checkVaultSettingsValidity()</slot>
   <slot>vaultConfigExecute()</slot>
  </slots>
 </ui>
