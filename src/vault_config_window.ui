@@ -360,7 +360,7 @@
   </connection>
   <connection>
    <sender>VaultNameEdit</sender>
-   <signal>editingFinished()</signal>
+   <signal>textChanged(QString)</signal>
    <receiver>MainWindowVaultConfig</receiver>
    <slot>checkVaultNameValidity()</slot>
    <hints>

@@ -155,7 +155,7 @@ class Ui_MainWindowVaultConfig(object):
         self.filePathEdit.textChanged['QString'].connect(MainWindowVaultConfig.updateLinkIcon) # type: ignore
         self.vaultPathToolButton.clicked.connect(MainWindowVaultConfig.chooseVaultPath) # type: ignore
         self.filePathToolButton.clicked.connect(MainWindowVaultConfig.chooseVaultPath) # type: ignore
-        self.VaultNameEdit.editingFinished.connect(MainWindowVaultConfig.checkVaultNameValidity) # type: ignore
+        self.VaultNameEdit.textChanged['QString'].connect(MainWindowVaultConfig.checkVaultNameValidity) # type: ignore
         self.pushButton.clicked.connect(MainWindowVaultConfig.close) # type: ignore
         self.OKButton.clicked.connect(MainWindowVaultConfig.vaultConfigExecute) # type: ignore
         QtCore.QMetaObject.connectSlotsByName(MainWindowVaultConfig)

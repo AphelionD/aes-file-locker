@@ -82,40 +82,7 @@
        </font>
       </property>
       <layout class="QGridLayout" name="gridLayout_2">
-       <item row="2" column="0">
-        <widget class="QLabel" name="vaultPathReminderLabel">
-         <property name="font">
-          <font>
-           <family>微软雅黑</family>
-          </font>
-         </property>
-         <property name="styleSheet">
-          <string notr="true">color:rgb(170, 0, 0)</string>
-         </property>
-         <property name="text">
-          <string>密码库路径不存在！</string>
-         </property>
-        </widget>
-       </item>
-       <item row="5" column="0" colspan="2">
-        <spacer name="verticalSpacer">
-         <property name="font">
-          <font>
-           <family>微软雅黑</family>
-          </font>
-         </property>
-         <property name="orientation">
-          <enum>Qt::Vertical</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>20</width>
-           <height>40</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-       <item row="14" column="0">
+       <item row="13" column="0">
         <widget class="QWidget" name="passwordInputWidget" native="true">
          <property name="minimumSize">
           <size>
@@ -168,18 +135,6 @@
             </property>
            </widget>
           </item>
-          <item row="6" column="0">
-           <widget class="QPushButton" name="pushButton_2">
-            <property name="font">
-             <font>
-              <family>微软雅黑</family>
-             </font>
-            </property>
-            <property name="text">
-             <string>解密</string>
-            </property>
-           </widget>
-          </item>
           <item row="0" column="1">
            <widget class="QLineEdit" name="passwordEdit">
             <property name="font">
@@ -223,19 +178,25 @@
             </property>
            </widget>
           </item>
+          <item row="6" column="0" colspan="2" alignment="Qt::AlignLeft">
+           <widget class="QPushButton" name="pushButton_2">
+            <property name="maximumSize">
+             <size>
+              <width>200</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <property name="font">
+             <font>
+              <family>微软雅黑</family>
+             </font>
+            </property>
+            <property name="text">
+             <string>解密</string>
+            </property>
+           </widget>
+          </item>
          </layout>
-        </widget>
-       </item>
-       <item row="1" column="0" colspan="2">
-        <widget class="QLabel" name="vaultPathLabel">
-         <property name="font">
-          <font>
-           <family>微软雅黑</family>
-          </font>
-         </property>
-         <property name="text">
-          <string>密码库路径：</string>
-         </property>
         </widget>
        </item>
        <item row="3" column="0" colspan="2">
@@ -247,6 +208,33 @@
          </property>
          <property name="text">
           <string>解密文件夹路径：</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QLabel" name="vaultPathReminderLabel">
+         <property name="font">
+          <font>
+           <family>微软雅黑</family>
+          </font>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">color:rgb(170, 0, 0)</string>
+         </property>
+         <property name="text">
+          <string>密码库路径不存在！</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0" colspan="2">
+        <widget class="QLabel" name="vaultPathLabel">
+         <property name="font">
+          <font>
+           <family>微软雅黑</family>
+          </font>
+         </property>
+         <property name="text">
+          <string>密码库路径：</string>
          </property>
         </widget>
        </item>
@@ -262,20 +250,23 @@
          </property>
         </widget>
        </item>
-       <item row="4" column="0">
-        <widget class="QLabel" name="filePathReminderLabel">
+       <item row="4" column="0" colspan="2">
+        <spacer name="verticalSpacer">
          <property name="font">
           <font>
            <family>微软雅黑</family>
           </font>
          </property>
-         <property name="styleSheet">
-          <string notr="true">color:rgb(170, 0, 0)</string>
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
          </property>
-         <property name="text">
-          <string>解密文件夹路径不存在！</string>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
          </property>
-        </widget>
+        </spacer>
        </item>
       </layout>
      </widget>
@@ -351,7 +342,7 @@
      <x>0</x>
      <y>0</y>
      <width>819</width>
-     <height>26</height>
+     <height>23</height>
     </rect>
    </property>
   </widget>
@@ -407,11 +398,28 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>delVault</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>deleteVault()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>743</x>
+     <y>118</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>744</x>
+     <y>401</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>update_password_echo_mode(bool)</slot>
   <slot>launchVaultWin()</slot>
   <slot>enableVaultConfigWidget()</slot>
   <slot>updateVaultInfo()</slot>
+  <slot>deleteVault()</slot>
  </slots>
 </ui>

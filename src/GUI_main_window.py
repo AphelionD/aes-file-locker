@@ -73,6 +73,7 @@ class MainWindowVaultConfig(QMainWindow, Ui_MainWindowVaultConfig):
                 "vault_path": self.vault_path,
                 "file_path": self.file_path
             }
+        dump(app_config,open("app_config.json",'w',encoding='utf8'))
         self.path_updated.emit(self.VaultNameEdit.text(),self.vault_path,self.file_path)
         self.close()
 
@@ -86,8 +87,6 @@ class MainWindowVaultConfig(QMainWindow, Ui_MainWindowVaultConfig):
             # 如果用户没有设置file path，那么缺省是将file path和vault path设成相同
             self.file_path = self.vault_path
             self.filePathEdit.setText(self.file_path)
-    def showWarningMsg(self,msg):
-        QMessageBox.warning(self, 'Warning', msg, QMessageBox.Yes)
 
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
@@ -103,9 +102,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.progressBar.reset()
         self.progressBar.setRange(0,3)
         self.vaultPathReminderLabel.hide()
-        self.filePathReminderLabel.hide()
 
     def updateVaultInfo(self):
+        if not self.vaultList.selectedItems():
+            # 如果没有密码库选中
+            self.file_path = ""
+            self.filePathLabel.setText("解密文件夹路径：")
+            self.vaultPathLabel.setText("密码库路径：")
+            self.vaultPathReminderLabel.hide()
+            self.vaultConfigWidget.setEnabled(False)
+            self.vaultInfoWidget.setEnabled(False)
+            return
         self.vaultConfigWidget.setEnabled(True)
         self.vaultInfoWidget.setEnabled(True)
         self.vault_name = self.vaultList.currentItem().text()
@@ -120,7 +127,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.vaultPathLabel.setText(f"密码库路径：{self.vault_path}")
             self.filePathLabel.setText(f"解密文件夹路径：{self.file_path}")
             self.vaultPathReminderLabel.hide()
-            self.filePathReminderLabel.hide()
             self.passwordInputWidget.setEnabled(True)
             if self.vault_path != self.file_path:
                 # 库文分离
@@ -138,20 +144,36 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.passwordEdit.setEchoMode(QLineEdit.Password)
             self.passwordTwiceEdit.setEchoMode(QLineEdit.Password)
 
-    def update_path(self,name, vault_path,file_path):
+    def update_path(self, name, vault_path,file_path):
         """接收到子窗口传来的信号后，更新文件路径与密码库名称"""
         if name != self.vaultList.currentItem().text():
-            self.vaultList.currentItem().setText(name)
+            self.vaultList.currentItem().setText(name) # 修改了列表里面的密码库名称，就不用修改info界面的密码库名称了，因为updateVaultInfo方法会自动按照vaultList里面的名称修改
         self.vault_path = vault_path
         self.file_path = file_path
         self.updateVaultInfo()
+
+    def showWarning(self,msg):
+        return QMessageBox.warning(self, '删除密码库', msg, QMessageBox.Yes|QMessageBox.Cancel,QMessageBox.Cancel)
+        # 待优化：改成中文
+
     def launchVaultWin(self):
+        """槽函数：运行子窗口"""
         global app_config
         vault_name = self.vaultList.currentItem().text()
         self.myVaultWin = MainWindowVaultConfig(self,vault_name, app_config[vault_name]['vault_path'],app_config[vault_name]['file_path'])
         self.myVaultWin.path_updated.connect(self.update_path)
         # myVaultWin一定要加self
         self.myVaultWin.show()
+
+    def deleteVault(self):
+        """槽函数：删除密码库"""
+        reply = self.showWarning("确认删除密码库吗？程序不会删除你的文件。")
+        if reply == QMessageBox.Yes:
+            del app_config[self.vault_name]
+            dump(app_config,open("app_config.json",'w',encoding='utf8'))
+            self.vaultList.takeItem(self.vaultList.currentRow())
+            self.updateVaultInfo()
+
 class WorkThread(QThread):
     # 自定义信号对象。参数str就代表这个信号可以传一个字符串
     trigger = pyqtSignal(int)
