@@ -189,7 +189,7 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "AES File Locker"))
         self.addVaultButton.setText(_translate("MainWindow", "添加密码库"))
         self.passwordLabel.setText(_translate("MainWindow", "请输入密码"))
         self.progressReminder.setText(_translate("MainWindow", "两次输入的密码不相同!"))

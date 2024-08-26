@@ -1,7 +1,7 @@
 import sys
-from PyQt5.QtWidgets import QMainWindow,QApplication,QLineEdit,QMessageBox, QFileDialog
+from PyQt5.QtWidgets import QMainWindow,QApplication,QLineEdit,QMessageBox, QFileDialog, QDialog
 from Ui_main_window import Ui_MainWindow
-from Ui_vault_config_window import Ui_MainWindowVaultConfig
+from Ui_vaut_config_dialog import Ui_Dialog
 from PyQt5.QtCore import QThread, pyqtSignal
 import file_locker_main
 import time
@@ -10,7 +10,7 @@ from ejson import dump,dumps,load,loads
 import os
 
 app_config = None
-class MainWindowVaultConfig(QMainWindow, Ui_MainWindowVaultConfig):
+class MainWindowVaultConfig(QDialog, Ui_Dialog):
     path_updated = pyqtSignal(str,str,str,bool) # 信号，用于通知主窗口更新密码库信息。参数：vault_name,vault_path,file_path,editting
     def __init__(self, parent=None, vault_name="", vault_path="", file_path="", editting=False):
         """
@@ -51,6 +51,9 @@ class MainWindowVaultConfig(QMainWindow, Ui_MainWindowVaultConfig):
         self.vaultNameReminder.hide()
         self.vaultPathReminder.hide()
         self.filePathReminder.hide()
+
+        self.raise_()
+        self.activateWindow()
 
     def checkVaultSettingsValidity(self):
         """更新路径检查提示，更新link图标"""
@@ -192,17 +195,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """槽函数：运行子窗口"""
         global app_config
         vault_name = self.vaultList.currentItem().text()
-        self.myVaultWin = MainWindowVaultConfig(self,vault_name, app_config[vault_name]['vault_path'],app_config[vault_name]['file_path'], True)
-        self.myVaultWin.path_updated.connect(self.update_path)
+        self.dialog = MainWindowVaultConfig(self,vault_name, app_config[vault_name]['vault_path'],app_config[vault_name]['file_path'], True)
+        self.dialog.path_updated.connect(self.update_path)
+        self.dialog.setModal(True)
         # myVaultWin一定要加self
-        self.myVaultWin.show()
+        self.dialog.show()
 
     def addVault(self):
         """槽函数：新建密码库"""
         global app_config
-        self.myVaultWin = MainWindowVaultConfig(self)
-        self.myVaultWin.path_updated.connect(self.update_path)
-        self.myVaultWin.show()
+        self.dialog = MainWindowVaultConfig(self)
+        self.dialog.path_updated.connect(self.update_path)
+        self.dialog.setModal(True)
+        self.dialog.show()
 
     def deleteVault(self):
         """槽函数：删除密码库"""
