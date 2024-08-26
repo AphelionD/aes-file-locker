@@ -6,8 +6,9 @@ from PyQt5.QtCore import QThread, pyqtSignal
 import file_locker_main
 import time
 import random
-from ejson import dump,dumps,load,loads
+from ejson import dump,load
 import os
+from zxcvbn import zxcvbn
 
 app_config = None
 class MainWindowVaultConfig(QDialog, Ui_Dialog):
@@ -130,8 +131,60 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.progressBar.reset()
         self.progressBar.setRange(0,3)
         self.vaultPathReminderLabel.hide()
+        self.progressReminder.hide()
+        self.passwordTwiceEdit.hide()
+        self.passwordTwiceLabel.hide()
+        self.vaultConfigWidget.hide()
+        self.refreshButton.hide()
+
+    def get_status(self):
+        """判断密码库状态：待加密、待解密、创建新密码"""
+        if not os.path.isdir(self.vault_path):
+            self.status = "invalid_vault_path"
+        # 库文分离的情况
+        elif self.vault_path != self.file_path:
+            # 如果file存在
+            if not hasattr(self,'status'):
+                self.status = ''
+            if os.path.isdir(self.file_path):
+                # 如果密码库已配置，判定为已解密
+                if os.path.isfile(os.path.join(self.vault_path,'config.json')):
+                    self.status = "decrypted"
+                else: # 如果密码库未配置，要新建密码
+                    self.status = "new_password"
+            elif self.status == 'change_password':
+                # 注意一定要保证self.status的存在
+                # 修改密码的过程中如果用户删除了解密文件夹，应该报错（谁会这么无聊）
+                self.status == "invalid_file_path"
+            elif os.path.isfile(os.path.join(self.vault_path,'config.json')): # 如果密码库已配置，判定为已加密
+                self.status =  "encrypted"
+            else:
+                # 没有待加密文件夹
+                self.status =  "invalid_file_path"
+        # 库文相同
+        elif os.path.isfile(os.path.join(self.vault_path,'config.json')):# 不存在配置文件时，新建密码
+            if file_locker_main.is_encrypted(self.vault_path):
+                self.status =  "encrypted"
+            else:
+                self.status = "decrypted"
+        else:
+            self.status =  "new_password"
+        return self.status
 
     def updateVaultInfo(self):
+        # 清空密码输入字段
+        self.passwordEdit.clear()
+        self.passwordTwiceEdit.clear()
+        self.refreshButton.hide()
+        self.progressReminder.hide()
+        self.passwordTwiceEdit.hide()
+        self.passwordTwiceLabel.hide()
+        self.vaultConfigWidget.show()
+        self.changePassword.setEnabled(False)
+        self.vaultPathReminderLabel.hide()
+        self.OKButton.setEnabled(False)
+
+        # 检查是否有密码库被选中
         if not self.vaultList.selectedItems():
             # 如果没有密码库选中
             self.file_path = ""
@@ -141,27 +194,97 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.vaultConfigWidget.setEnabled(False)
             self.vaultInfoWidget.setEnabled(False)
             return
+
+        # 如果有密码库被选中，开启密码库设置相关按钮
         self.vaultConfigWidget.setEnabled(True)
         self.vaultInfoWidget.setEnabled(True)
+
+        # 获取当前选中的密码库名称并显示
         self.vault_name = self.vaultList.currentItem().text()
         self.vaultNameLabel.setText("密码库：%s" % self.vault_name)
+        self.file_path = app_config[self.vault_name]['file_path']
         self.vault_path = app_config[self.vault_name]['vault_path']
-        if not os.path.isdir(self.vault_path):
+        self.vaultPathLabel.setText(f"密码库路径：{self.vault_path}")
+        self.filePathLabel.setText(f"解密文件夹路径：{self.file_path}")
+
+
+        self.get_status()
+
+        if self.status == "invalid_vault_path":
             # 如果加密目录不存在，显示警告
             self.vaultPathReminderLabel.show()
+            self.vaultPathReminderLabel.setText("密码库路径不存在！")
             self.passwordInputWidget.setEnabled(False)
+            self.refreshButton.show()
+            return "invalid"
+        elif self.status == "invalid_file_path":
+            self.vaultPathReminderLabel.show()
+            self.vaultPathReminderLabel.setText("找不到待加密的文件夹，请先创建这个文件夹")
+            self.refreshButton.show()
+            self.passwordInputWidget.setEnabled(False)
+            return "invalid"
+        elif self.status == "new_password":
+            self.newPassword()
+        elif self.status == "encrypted":
+            self.vaultNameLabel.setText("密码库：%s（已加密）" % (self.vault_name))
+            self.OKButton.setText("解密")
+        elif self.status == "decrypted":
+            self.vaultNameLabel.setText("密码库：%s（已解密）" % self.vault_name)
+            self.OKButton.setText("加密")
+            self.changePassword.setEnabled(True)
+
+
+    def newPassword(self):
+        """如果点击了修改密码，或者需要创建新密码时，就使用这个"""
+        self.passwordInputWidget.setEnabled(True)
+        self.vaultNameLabel.setText("密码库：%s（待加密）" % self.vault_name)
+        self.passwordTwiceEdit.show()
+        self.passwordTwiceLabel.show()
+        self.OKButton.setEnabled(False)
+        self.progressReminder.hide()
+        if self.status == "new_password":
+            self.OKButton.setText("创建新密码")
+        elif self.status == "decrypted" or self.status == "change_password":
+            # "change_password"作为条件是为了防止用户重复点击修改密码
+            self.status = 'change_password'
+            self.OKButton.setText("修改密码")
         else:
-            self.file_path = app_config[self.vault_name]['file_path']
-            self.vaultPathLabel.setText(f"密码库路径：{self.vault_path}")
-            self.filePathLabel.setText(f"解密文件夹路径：{self.file_path}")
-            self.vaultPathReminderLabel.hide()
-            self.passwordInputWidget.setEnabled(True)
-            if self.vault_path != self.file_path:
-                # 库文分离
-                is_encrypted = not os.path.isdir(self.file_path)
-            else:
-                is_encrypted = file_locker_main.is_encrypted(self.vault_path)
-            self.vaultNameLabel.setText("密码库：%s（已%s）" % (self.vault_name, "加密" if is_encrypted else "解密"))
+            raise Exception("密码库状态错误，程序漏洞")
+
+    def measurePasswordStrength(self):
+        # 初始化
+        pw1 = self.passwordEdit.text()
+        pw2 = self.passwordTwiceEdit.text()
+        self.progressReminder.show()
+        self.progressReminder.setStyleSheet("color: rgb(184,5,5)")
+        self.OKButton.setEnabled(False)
+        # 如果不是新建密码状态
+        if pw1 == "":
+            self.progressReminder.setText('密码不能为空！')
+        elif self.status != 'new_password' and self.status != 'change_password':
+            self.progressReminder.hide()
+            self.OKButton.setEnabled(True)
+        elif pw1 != pw2:
+            self.progressReminder.setText('两次输入的密码不一致！')
+        else:
+            score = zxcvbn(pw1)['score']
+            if score == 0:
+                self.progressReminder.setText('密码强度：极弱')
+            elif score == 1:
+                self.progressReminder.setStyleSheet("color: rgb(255, 106, 27)")
+                self.progressReminder.setText('密码强度：弱')
+            elif score == 2:
+                self.progressReminder.setStyleSheet("color: rgb(150, 133, 45)")
+                self.progressReminder.setText('密码强度：中等')
+                self.OKButton.setEnabled(True)
+            elif score == 3:
+                self.progressReminder.setText('密码强度：较强')
+                self.progressReminder.setStyleSheet("color: rgb(99, 140, 42)")
+                self.OKButton.setEnabled(True)
+            elif score == 4:
+                self.progressReminder.setStyleSheet("color: rgb(16, 119, 15)")
+                self.progressReminder.setText('密码强度：强')
+                self.OKButton.setEnabled(True)
 
     def update_password_echo_mode(self, bool):
         """showPassword - toggled(bool)的槽函数"""
