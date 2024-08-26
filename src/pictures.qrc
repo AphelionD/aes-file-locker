@@ -1,5 +1,7 @@
 <RCC>
   <qresource prefix="link">
-    <file>link.svg</file>
+    <file>assets/link.svg</file>
+    <file>assets/解锁.svg</file>
+    <file>assets/锁定.svg</file>
   </qresource>
 </RCC>

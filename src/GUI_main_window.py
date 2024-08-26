@@ -1,14 +1,14 @@
 import sys
+from PyQt5.QtGui import QKeyEvent
 from PyQt5.QtWidgets import QMainWindow,QApplication,QLineEdit,QMessageBox, QFileDialog, QDialog
 from Ui_main_window import Ui_MainWindow
 from Ui_vaut_config_dialog import Ui_Dialog
-from PyQt5.QtCore import QThread, pyqtSignal
+from PyQt5.QtCore import pyqtSignal,Qt
 import file_locker_main
-import time
-import random
 from ejson import dump,load
 import os
 from zxcvbn import zxcvbn
+import re
 
 app_config = None
 class MainWindowVaultConfig(QDialog, Ui_Dialog):
@@ -41,7 +41,7 @@ class MainWindowVaultConfig(QDialog, Ui_Dialog):
 
         # 根据保险库路径和文件路径的比较结果来决定是否显示链接标签
         if vault_path != file_path:
-            self.link_label.hide()
+            self.linkLabel.hide()
 
         # 设置各个编辑框的初始值
         self.VaultNameEdit.setText(vault_name)
@@ -57,36 +57,50 @@ class MainWindowVaultConfig(QDialog, Ui_Dialog):
         self.activateWindow()
 
     def checkVaultSettingsValidity(self):
-        """更新路径检查提示，更新link图标"""
-        flag = True # flag必须通过全部检查点才可以变成True
+        """
+        更新路径检查提示，更新link图标
+
+        此函数用于检查密码库设置的有效性。它通过一系列的条件判断来确保
+        密码库名称不为空、密码库名称唯一、指定的路径存在等条件，从而保证
+        用户输入的设置信息有效。有效性检查通过后，允许启用确定按钮。
+        """
+        flag = True  # flag必须通过全部检查点才可以变成True
+        # 检查密码库名称是否为空
         if self.VaultNameEdit.text() == "":
-            self.vaultNameReminder.show()
+            self.vaultNameReminder.show()  # 显示提示信息
             self.vaultNameReminder.setText("密码库名称不能为空！")
             flag = False
+        # 检查密码库名称是否唯一
         elif self.VaultNameEdit.text() in app_config and self.VaultNameEdit.text() != self.original_vault_name:
-            self.vaultNameReminder.show()
+            self.vaultNameReminder.show()  # 显示提示信息
             self.vaultNameReminder.setText("密码库名称已存在！")
             flag = False
         else:
-            self.vaultNameReminder.hide()
+            self.vaultNameReminder.hide()  # 隐藏提示信息
+        # 更新密码库路径
         self.vault_path = self.vaultPathEdit.text()
+        # 更新文件路径
         self.file_path = self.filePathEdit.text()
+        # 检查密码库路径是否有效
         if os.path.isdir(self.vault_path):
-            self.vaultPathReminder.hide()
+            self.vaultPathReminder.hide()  # 隐藏无效路径提示
         else:
-            self.vaultPathReminder.show()
+            self.vaultPathReminder.show()  # 显示无效路径提示
+        # 检查文件路径的目录是否有效
         if os.path.isdir(os.path.split(self.file_path)[0]):
-            self.filePathReminder.hide()
+            self.filePathReminder.hide()  # 隐藏无效路径提示
         else:
-            self.filePathReminder.show()
+            self.filePathReminder.show()  # 显示无效路径提示
+        # 根据路径有效性更新link图标
         if os.path.isdir(self.vault_path) and os.path.isdir(os.path.split(self.file_path)[0]):
             if self.vault_path == self.file_path:
-                self.link_label.show()
+                self.linkLabel.show()  # 显示link图标
             else:
-                self.link_label.hide()
+                self.linkLabel.hide()  # 隐藏link图标
         else:
-            flag = False
-        self.OKButton.setEnabled(flag)
+            flag = False  # 如果路径无效，设置flag为False
+        self.OKButton.setEnabled(flag)  # 根据flag的值启用或禁用确定按钮
+
     def vaultConfigExecute(self):
         """vault_config完成，OK按钮被点击，保存相应的设置"""
         global app_config
@@ -106,9 +120,14 @@ class MainWindowVaultConfig(QDialog, Ui_Dialog):
         self.path_updated.emit(self.VaultNameEdit.text(),self.vault_path,self.file_path, self.editting)
         self.close()
 
+    def keyPressEvent(self, a0: QKeyEvent) -> None:
+        if (a0.key() == Qt.Key.Key_Enter or a0.key() == Qt.Key.Key_Return) and self.OKButton.isEnabled():
+            self.vaultConfigExecute()
+
     def chooseFilePath(self):
         self.file_path = QFileDialog.getExistingDirectory(self, "选择解密文件夹路径", "./")
         self.filePathEdit.setText(self.file_path)
+
     def chooseVaultPath(self):
         self.vault_path = QFileDialog.getExistingDirectory(self, "选择加密文件夹路径", "./")
         self.vaultPathEdit.setText(self.vault_path)
@@ -122,8 +141,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         global app_config
         super(MainWindow,self).__init__()
         self.setupUi(self)
-        self.work = WorkThread()
         app_config = load(open("app_config.json",'r',encoding='utf8'))
+        self.current_working_on = "" # 防止正在进行加解密操作时进行其他文件夹的加解密
+        self.status = ''
         for i in app_config:
             self.vaultList.addItem(i)
         # 隐藏警告信息
@@ -136,17 +156,22 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.passwordTwiceLabel.hide()
         self.vaultConfigWidget.hide()
         self.refreshButton.hide()
+        self.lock.hide()
+        self.cancelButton.hide()
 
-    def get_status(self):
+    def update_status(self, only_check_if_dir_exist = False):
         """判断密码库状态：待加密、待解密、创建新密码"""
         if not os.path.isdir(self.vault_path):
             self.status = "invalid_vault_path"
         # 库文分离的情况
+        elif os.path.isfile(os.path.join(self.file_path,'WARNING-警告！对这个文件夹下你的文件的任何修改将不被保存.txt')):
+            if not hasattr(self,'message_shown'):
+                QMessageBox.warning(self,"意外退出",f"上次解密{self.vault_name}时意外退出，现在输入密码将使用密码库中的文件解密",QMessageBox.Yes)
+                self.message_shown = True # 防止重复弹出
+            self.status = 'encrypted'
         elif self.vault_path != self.file_path:
             # 如果file存在
-            if not hasattr(self,'status'):
-                self.status = ''
-            if os.path.isdir(self.file_path):
+            if os.path.isdir(self.file_path) and not only_check_if_dir_exist:
                 # 如果密码库已配置，判定为已解密
                 if os.path.isfile(os.path.join(self.vault_path,'config.json')):
                     self.status = "decrypted"
@@ -156,6 +181,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 # 注意一定要保证self.status的存在
                 # 修改密码的过程中如果用户删除了解密文件夹，应该报错（谁会这么无聊）
                 self.status == "invalid_file_path"
+            elif only_check_if_dir_exist:
+                pass
             elif os.path.isfile(os.path.join(self.vault_path,'config.json')): # 如果密码库已配置，判定为已加密
                 self.status =  "encrypted"
             else:
@@ -171,10 +198,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.status =  "new_password"
         return self.status
 
-    def updateVaultInfo(self):
+    def updateVaultInfo(self, clear_password_input = True, only_check_if_dir_exist = False):
         # 清空密码输入字段
-        self.passwordEdit.clear()
-        self.passwordTwiceEdit.clear()
+        if hasattr(self,'status'):
+            if self.status == 'decrypting' or self.status == 'encrypting':
+                self.current_working_on = self.vault_name
+        if clear_password_input:
+            self.passwordEdit.clear()
+            self.progressBar.hide()
+            self.passwordTwiceEdit.clear()
         self.refreshButton.hide()
         self.progressReminder.hide()
         self.passwordTwiceEdit.hide()
@@ -183,6 +215,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.changePassword.setEnabled(False)
         self.vaultPathReminderLabel.hide()
         self.OKButton.setEnabled(False)
+        self.passwordInputWidget.setEnabled(True)
+        self.lock.hide()
 
         # 检查是否有密码库被选中
         if not self.vaultList.selectedItems():
@@ -195,10 +229,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.vaultInfoWidget.setEnabled(False)
             return
 
-        # 如果有密码库被选中，开启密码库设置相关按钮
-        self.vaultConfigWidget.setEnabled(True)
-        self.vaultInfoWidget.setEnabled(True)
-
         # 获取当前选中的密码库名称并显示
         self.vault_name = self.vaultList.currentItem().text()
         self.vaultNameLabel.setText("密码库：%s" % self.vault_name)
@@ -206,9 +236,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.vault_path = app_config[self.vault_name]['vault_path']
         self.vaultPathLabel.setText(f"密码库路径：{self.vault_path}")
         self.filePathLabel.setText(f"解密文件夹路径：{self.file_path}")
-
-
-        self.get_status()
+        # 如果有密码库被选中，开启密码库设置相关按钮
+        if self.current_working_on:
+            if self.vault_name == self.current_working_on:
+                self.progressBar.show()
+                self.vaultConfigWidget.setEnabled(False)
+                self.passwordInputWidget.setEnabled(True)
+            else:
+                self.vaultConfigWidget.setEnabled(False)
+                self.vaultInfoWidget.setEnabled(False)
+        else:
+            self.vaultConfigWidget.setEnabled(True)
+            self.vaultInfoWidget.setEnabled(True)
+        self.update_status(only_check_if_dir_exist)
 
         if self.status == "invalid_vault_path":
             # 如果加密目录不存在，显示警告
@@ -224,11 +264,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.passwordInputWidget.setEnabled(False)
             return "invalid"
         elif self.status == "new_password":
+            self.lock.show()
+            self.lock.setStyleSheet('border-image:url(:/link/assets/解锁.svg)')
             self.newPassword()
         elif self.status == "encrypted":
+            self.lock.show()
+            self.lock.setStyleSheet('border-image:url(:/link/assets/锁定.svg)')
             self.vaultNameLabel.setText("密码库：%s（已加密）" % (self.vault_name))
             self.OKButton.setText("解密")
         elif self.status == "decrypted":
+            self.lock.show()
+            self.lock.setStyleSheet('border-image:url(:/link/assets/解锁.svg)')
             self.vaultNameLabel.setText("密码库：%s（已解密）" % self.vault_name)
             self.OKButton.setText("加密")
             self.changePassword.setEnabled(True)
@@ -246,10 +292,76 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.OKButton.setText("创建新密码")
         elif self.status == "decrypted" or self.status == "change_password":
             # "change_password"作为条件是为了防止用户重复点击修改密码
+            self.cancelButton.show()
             self.status = 'change_password'
             self.OKButton.setText("修改密码")
         else:
             raise Exception("密码库状态错误，程序漏洞")
+
+    def OK(self):
+        """点击OK的槽函数
+        """
+        self.updateVaultInfo(clear_password_input = False, only_check_if_dir_exist = True)
+        if 'invalid' in self.status:
+            return
+        elif self.status == 'encrypted':
+            self.work = file_locker_main.Decrypt(self,self.vault_path,self.file_path,self.passwordEdit.text())
+            self.status = 'decrypting'
+        elif self.status == 'decrypted':
+            self.work = file_locker_main.Encrypt(self,self.vault_path,self.file_path,self.passwordEdit.text())
+            self.status = 'encrypting'
+        elif self.status == 'change_password' or self.status == 'new_password':
+            self.work = file_locker_main.Encrypt(self,self.vault_path,self.file_path,self.passwordEdit.text(),True)
+            self.status = 'encrypting'
+        else:
+            raise Exception('程序漏洞')
+        self.progressReminder.clear()
+        self.progressReminder.show()
+        self.progressBar.show()
+        self.progressBar.setEnabled(True)
+        self.work.start()
+        self.work.pb_update.connect(self.updateProgressBar)
+        self.work.pb_total_changed.connect(self.updatePbTotal)
+        self.work.work_thread_status_changed.connect(self.updateProgressReminder)
+        self.work.send_warning.connect(self.sendWarning)
+        self.work.task_completed.connect(self.taskCompleted)
+        self.work.password_incorrect.connect(self.catch_encryption_error)
+        self.work.clear_pb.connect(self.progressBar.reset)
+
+    def keyPressEvent(self, a0: QKeyEvent) -> None:
+        if (a0.key() == Qt.Key.Key_Enter or a0.key() == Qt.Key.Key_Return) and self.OKButton.isEnabled():
+            self.OK()
+
+    def catch_encryption_error(self):
+        self.progressReminder.setStyleSheet("color: rgb(184,5,5)")
+        self.progressReminder.setText('密码错误')
+        self.progressBar.hide()
+        self.current_working_on = ""
+
+    def updateProgressBar(self, num):
+        self.progressBar.setValue(num)
+
+    def updatePbTotal(self,num):
+        self.progressBar.setMaximum(num)
+
+    def updateProgressReminder(self,msg):
+        self.progressReminder.setStyleSheet('')
+        self.progressReminder.setText(msg)
+
+    def sendWarning(self,msg):
+        self.progressReminder.setStyleSheet("color: rgb(150, 133, 45)")
+        self.progressReminder.setText(msg)
+
+    def taskCompleted(self):
+        if self.status == 'decrypting':
+            msg = '解密成功'
+            self.status = 'decrypted'
+        else:
+            msg = '加密成功'
+            self.status = 'encrypted'
+        self.current_working_on = ""
+        QMessageBox.information(self, msg, msg, QMessageBox.Yes)
+        self.updateVaultInfo()
 
     def measurePasswordStrength(self):
         # 初始化
@@ -285,6 +397,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.progressReminder.setStyleSheet("color: rgb(16, 119, 15)")
                 self.progressReminder.setText('密码强度：强')
                 self.OKButton.setEnabled(True)
+            if any(ord(char) > 127 for char in pw1):
+                self.progressReminder.setText(self.progressReminder.text() +'（密码中包含非ascii字符！）')
+            if re.match(r'.*\s.*',pw1):
+                self.progressReminder.setText(self.progressReminder.text() +'（密码中包含空格或换行！）')
+
+    def cancelPasswordChange(self):
+        self.passwordTwiceEdit.hide()
+        self.passwordTwiceLabel.hide()
+        self.progressReminder.hide()
+        self.cancelButton.hide()
+        self.updateVaultInfo()
 
     def update_password_echo_mode(self, bool):
         """showPassword - toggled(bool)的槽函数"""
@@ -340,22 +463,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             dump(app_config,open("app_config.json",'w',encoding='utf8'))
             self.vaultList.takeItem(self.vaultList.currentRow())
             self.updateVaultInfo()
-
-class WorkThread(QThread):
-    # 自定义信号对象。参数str就代表这个信号可以传一个字符串
-    trigger = pyqtSignal(int)
-
-    def __int__(self):
-        # 初始化函数
-        super(WorkThread, self).__init__()
-
-    def run(self):
-        #重写线程执行的run函数
-        #触发自定义信号
-        for i in range(3):
-            time.sleep(1+random.random())
-            # 通过自定义信号把待显示的字符串传递给槽函数
-            self.trigger.emit(i+1)
 
 
 if __name__ == "__main__":

@@ -82,7 +82,7 @@
        </font>
       </property>
       <layout class="QGridLayout" name="gridLayout_2">
-       <item row="2" column="0">
+       <item row="4" column="0">
         <widget class="QLabel" name="vaultPathReminderLabel">
          <property name="font">
           <font>
@@ -97,19 +97,7 @@
          </property>
         </widget>
        </item>
-       <item row="1" column="0" colspan="2">
-        <widget class="QLabel" name="vaultPathLabel">
-         <property name="font">
-          <font>
-           <family>微软雅黑</family>
-          </font>
-         </property>
-         <property name="text">
-          <string>密码库路径：</string>
-         </property>
-        </widget>
-       </item>
-       <item row="4" column="0" colspan="2">
+       <item row="6" column="0" colspan="2">
         <widget class="QLabel" name="filePathLabel">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
@@ -131,9 +119,25 @@
          <property name="text">
           <string>解密文件夹路径：</string>
          </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
         </widget>
        </item>
-       <item row="5" column="0" colspan="2">
+       <item row="4" column="1">
+        <widget class="QPushButton" name="refreshButton">
+         <property name="maximumSize">
+          <size>
+           <width>100</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>刷新</string>
+         </property>
+        </widget>
+       </item>
+       <item row="8" column="0" colspan="2">
         <spacer name="verticalSpacer">
          <property name="font">
           <font>
@@ -151,33 +155,11 @@
          </property>
         </spacer>
        </item>
-       <item row="0" column="0" colspan="2">
-        <widget class="QLabel" name="vaultNameLabel">
-         <property name="font">
-          <font>
-           <family>微软雅黑</family>
-          </font>
-         </property>
-         <property name="text">
-          <string>密码库名称：</string>
-         </property>
-        </widget>
-       </item>
-       <item row="2" column="1">
-        <widget class="QPushButton" name="refreshButton">
-         <property name="maximumSize">
-          <size>
-           <width>100</width>
-           <height>16777215</height>
-          </size>
-         </property>
-         <property name="text">
-          <string>刷新</string>
-         </property>
-        </widget>
-       </item>
-       <item row="14" column="0" colspan="2">
+       <item row="17" column="0" colspan="2">
         <widget class="QWidget" name="passwordInputWidget" native="true">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
          <property name="minimumSize">
           <size>
            <width>0</width>
@@ -190,15 +172,22 @@
           </font>
          </property>
          <layout class="QGridLayout" name="gridLayout_3">
-          <item row="1" column="0">
-           <widget class="QLabel" name="passwordTwiceLabel">
+          <item row="2" column="0">
+           <widget class="QCheckBox" name="showPassword">
+            <property name="text">
+             <string>显示密码</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QLineEdit" name="passwordEdit">
             <property name="font">
              <font>
               <family>微软雅黑</family>
              </font>
             </property>
-            <property name="text">
-             <string>请再次输入密码</string>
+            <property name="echoMode">
+             <enum>QLineEdit::Password</enum>
             </property>
            </widget>
           </item>
@@ -214,28 +203,18 @@
             </property>
            </widget>
           </item>
-          <item row="2" column="0">
-           <widget class="QCheckBox" name="showPassword">
-            <property name="text">
-             <string>显示密码</string>
-            </property>
-           </widget>
-          </item>
-          <item row="5" column="0" colspan="2" alignment="Qt::AlignLeft">
-           <widget class="QPushButton" name="OKButton">
-            <property name="maximumSize">
-             <size>
-              <width>200</width>
-              <height>16777215</height>
-             </size>
+          <item row="4" column="0" colspan="2">
+           <widget class="QProgressBar" name="progressBar">
+            <property name="enabled">
+             <bool>false</bool>
             </property>
             <property name="font">
              <font>
               <family>微软雅黑</family>
              </font>
             </property>
-            <property name="text">
-             <string>解密</string>
+            <property name="value">
+             <number>24</number>
             </property>
            </widget>
           </item>
@@ -261,36 +240,104 @@
             <property name="text">
              <string>两次输入的密码不相同!</string>
             </property>
+            <property name="wordWrap">
+             <bool>true</bool>
+            </property>
            </widget>
           </item>
-          <item row="4" column="0" colspan="2">
-           <widget class="QProgressBar" name="progressBar">
-            <property name="enabled">
-             <bool>false</bool>
+          <item row="1" column="0">
+           <widget class="QLabel" name="passwordTwiceLabel">
+            <property name="font">
+             <font>
+              <family>微软雅黑</family>
+             </font>
+            </property>
+            <property name="text">
+             <string>请再次输入密码</string>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="1" alignment="Qt::AlignRight">
+           <widget class="QPushButton" name="cancelButton">
+            <property name="text">
+             <string>取消</string>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="0">
+           <widget class="QPushButton" name="OKButton">
+            <property name="maximumSize">
+             <size>
+              <width>200</width>
+              <height>16777215</height>
+             </size>
             </property>
             <property name="font">
              <font>
               <family>微软雅黑</family>
              </font>
             </property>
-            <property name="value">
-             <number>0</number>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="1">
-           <widget class="QLineEdit" name="passwordEdit">
-            <property name="font">
-             <font>
-              <family>微软雅黑</family>
-             </font>
-            </property>
-            <property name="echoMode">
-             <enum>QLineEdit::Password</enum>
+            <property name="text">
+             <string>解密</string>
             </property>
            </widget>
           </item>
          </layout>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="vaultPathLabel">
+         <property name="font">
+          <font>
+           <family>微软雅黑</family>
+          </font>
+         </property>
+         <property name="text">
+          <string>密码库路径：</string>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="0">
+        <widget class="QLabel" name="vaultNameLabel">
+         <property name="font">
+          <font>
+           <family>微软雅黑</family>
+          </font>
+         </property>
+         <property name="text">
+          <string>密码库名称：</string>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QGraphicsView" name="lock">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>30</width>
+           <height>30</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>30</width>
+           <height>30</height>
+          </size>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">border-image:url(:/link/assets/解锁.svg)</string>
+         </property>
         </widget>
        </item>
       </layout>
@@ -373,7 +420,9 @@
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
  </widget>
- <resources/>
+ <resources>
+  <include location="pictures.qrc"/>
+ </resources>
  <connections>
   <connection>
    <sender>showPassword</sender>
@@ -382,8 +431,8 @@
    <slot>update_password_echo_mode(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>364</x>
-     <y>258</y>
+     <x>425</x>
+     <y>290</y>
     </hint>
     <hint type="destinationlabel">
      <x>389</x>
@@ -510,8 +559,8 @@
    <slot>measurePasswordStrength()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>631</x>
-     <y>227</y>
+     <x>673</x>
+     <y>263</y>
     </hint>
     <hint type="destinationlabel">
      <x>694</x>
@@ -526,12 +575,28 @@
    <slot>measurePasswordStrength()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>610</x>
-     <y>200</y>
+     <x>673</x>
+     <y>234</y>
     </hint>
     <hint type="destinationlabel">
      <x>695</x>
      <y>171</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>cancelButton</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>cancelPasswordChange()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>641</x>
+     <y>361</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>642</x>
+     <y>400</y>
     </hint>
    </hints>
   </connection>
@@ -547,5 +612,6 @@
   <slot>newPassword()</slot>
   <slot>OK()</slot>
   <slot>measurePasswordStrength()</slot>
+  <slot>cancelPasswordChange()</slot>
  </slots>
 </ui>
