@@ -199,10 +199,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         return self.status
 
     def updateVaultInfo(self, clear_password_input = True, only_check_if_dir_exist = False):
-        # 清空密码输入字段
         if hasattr(self,'status'):
             if self.status == 'decrypting' or self.status == 'encrypting':
                 self.current_working_on = self.vault_name
+        # 清空密码输入字段
         if clear_password_input:
             self.passwordEdit.clear()
             self.progressBar.hide()
@@ -239,10 +239,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 如果有密码库被选中，开启密码库设置相关按钮
         if self.current_working_on:
             if self.vault_name == self.current_working_on:
+                # 如果正在操作的密码库和当前选中的密码库相同，说明正在加密或解密，显示进度条
                 self.progressBar.show()
                 self.vaultConfigWidget.setEnabled(False)
                 self.passwordInputWidget.setEnabled(True)
             else:
+                # 禁用用户操作
                 self.vaultConfigWidget.setEnabled(False)
                 self.vaultInfoWidget.setEnabled(False)
         else:
@@ -318,6 +320,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.progressReminder.clear()
         self.progressReminder.show()
         self.progressBar.show()
+        self.progressBar.setValue(0)
         self.progressBar.setEnabled(True)
         self.work.start()
         self.work.pb_update.connect(self.updateProgressBar)
@@ -326,7 +329,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.work.send_warning.connect(self.sendWarning)
         self.work.task_completed.connect(self.taskCompleted)
         self.work.password_incorrect.connect(self.catch_encryption_error)
-        self.work.clear_pb.connect(self.progressBar.reset)
+        self.work.clear_pb.connect(self.clearPb)
 
     def keyPressEvent(self, a0: QKeyEvent) -> None:
         if (a0.key() == Qt.Key.Key_Enter or a0.key() == Qt.Key.Key_Return) and self.OKButton.isEnabled():
@@ -340,6 +343,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def updateProgressBar(self, num):
         self.progressBar.setValue(num)
+
+    def clearPb(self):
+        self.progressBar.setValue(0)
 
     def updatePbTotal(self,num):
         self.progressBar.setMaximum(num)
