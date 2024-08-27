@@ -36,10 +36,10 @@ class QuickHashCmp():
         if self.left_hasher.version != self.right_hasher.version:
             raise VersionError(f'left is of QuickHash version {self.left_hasher.version} while right is of QuickHash version {self.right_hasher.version},\
                                cannot compare two hashes with different versions')
-        hashl = self.left_hasher.hash_content
-        hashr = self.right_hasher.hash_content
+        hashl = self.left_hasher.get_hash_content()
+        hashr = self.right_hasher.get_hash_content()
 
-        if hashl['headers']['total_hash'] == hashr['headers']['total_hash']:
+        if self.left_hasher.digest() == self.right_hasher.digest():
             self.is_equal = True
             return self
 
@@ -120,7 +120,7 @@ class QuickHash():
         self.__hash_method = HASH_METHOD_TABLE[hash_method]
         self.blocks = blocks
         self.block_size = block_size
-        self.hash_content = ''
+        self.__hash_content = ''
         self.version = version
         self.mtime = mtime
         self.ctime = ctime
@@ -140,7 +140,7 @@ class QuickHash():
         self.__hash_method =HASH_METHOD_TABLE[value]
         return value
 
-    def _quick_hash_v1_0(self,path:str,verify=False):
+    def _quick_hash_v1_0(self,path:str,return_new_instance=False):
         ''':param verify:如果True，那么不修改self.hash，否则修改
         样例：
         ```{
@@ -225,15 +225,15 @@ class QuickHash():
             ejson.dumps(result, indent=4, ensure_ascii=False).encode("utf-8")
         ).hexdigest()
         result["headers"]["QuickHash_version"] = "1.0"
-        if verify:
+        if return_new_instance:
             new_qh = QuickHash()
-            new_qh.hash_content = result
+            new_qh.__hash_content = result
             return new_qh
         else:
-            self.hash_content = result
+            self.__hash_content = result
             return self
 
-    def _quick_hash_v1_1(self,path:str,verify=False):
+    def _quick_hash_v1_1(self,path:str,return_new_instance=False):
         ''':param verify:如果True，那么不修改self.hash，否则修改
         版本更新：支持配置检查文件差异的办法：修改时间、创建时间、内容，可分别启用或弃用，不推荐使用创建时间
 
@@ -342,40 +342,46 @@ class QuickHash():
             total_dir_number += 1
         result["dir"] = list(sorted(result["dir"]))
         result["file"] = OrderedDict(sorted(result["file"].items(), key=lambda x: x[0]))
+        self.__hash_content = result
+        return self.update_headers(return_new_instance)
+    def update_headers(self, return_new_instance=False):
         headers = OrderedDict()
         headers["total_hash"] = ""
-        headers["total_dir_number"] = total_dir_number - 1
-        headers["total_file_number"] = len(result["file"])
+        headers["total_dir_number"] = len(self.__hash_content['dir']) - 1
+        headers["total_file_number"] = len(self.__hash_content["file"])
         headers["BLOCKS"] = self.blocks
         headers["BLOCK_SIZE"] = self.block_size
         headers["HASH_METHOD"] = self.hash_method
         headers['content'] = self.content
         headers['ctime'] = self.ctime
         headers['mtime'] = self.mtime
+        result = OrderedDict()
         result["headers"] = headers
         result["headers"]["total_hash"] = self.__hash_method(
-            ejson.dumps(result, indent=4, ensure_ascii=False).encode("utf-8")
+            ejson.dumps(self.__hash_content, indent=4, ensure_ascii=False).encode("utf-8")
         ).hexdigest()
         result["headers"]["QuickHash_version"] = "1.1"
-        if verify:
+        result['dir'] = self.__hash_content['dir']
+        result['file'] = self.__hash_content['file']
+        if return_new_instance:
             new_qh = QuickHash()
-            new_qh.hash_content = result
+            new_qh.__hash_content = result
             return new_qh
         else:
-            self.hash_content = result
+            self.__hash_content = result
             return self
 
 
-    def hash(self,path:str,verify=False):
+    def hash(self,path:str,return_new_instance=False):
         '''Hashes a directory, returns a QuickHash object.'''
         # 用于版本控制的函数
         if self.version == "1.0":
-            return self._quick_hash_v1_0(path,verify)
+            return self._quick_hash_v1_0(path,return_new_instance)
         elif self.version == "1.1":
-            return self._quick_hash_v1_1(path, verify)
+            return self._quick_hash_v1_1(path, return_new_instance)
     def to_str(self):
         '''returns a json-serialized QuickHash'''
-        return ejson.dumps(self.hash_content, ensure_ascii=False, indent=4)
+        return ejson.dumps(self.__hash_content, ensure_ascii=False, indent=4)
 
     @classmethod
     def from_str(cls,hash_content):
@@ -388,7 +394,7 @@ class QuickHash():
             hash_method=hash_content["headers"]["HASH_METHOD"]
             version = hash_content["headers"]["QuickHash_version"]
             new_instance = cls(blocks, block_size, hash_method, version)
-            new_instance.hash_content = hash_content
+            new_instance.__hash_content = hash_content
             return new_instance
         elif hash_content['headers']['QuickHash_version'] =='1.1':
             blocks=int(hash_content["headers"]["BLOCKS"])
@@ -399,13 +405,13 @@ class QuickHash():
             mtime = hash_content["headers"]["mtime"]
             ctime = hash_content["headers"]["ctime"]
             new_instance = cls(blocks, block_size, hash_method, mtime, ctime, content, version)
-            new_instance.hash_content = hash_content
+            new_instance.__hash_content = hash_content
             return new_instance
 
     def verify(self, path:str):
 
         new_hash = self.hash(path,True)
-        if new_hash.hash_content['headers']['total_hash']== self.hash_content['headers']['total_hash']:
+        if new_hash.__hash_content['headers']['total_hash']== self.__hash_content['headers']['total_hash']:
             return True
         else:
             return False
@@ -421,6 +427,19 @@ class QuickHash():
             if fnmatch.fnmatch(dir, pattern):
                 return True
         return False
+
+    def pop_item(self, dir = [], file = []):
+        for i in dir:
+            self.__hash_content["dir"].remove(i)
+        for i in file:
+            self.__hash_content["file"].pop(i)
+        self.update_headers()
+
+    def digest(self):
+        return self.__hash_content["headers"]["total_hash"]
+
+    def get_hash_content(self):
+        return self.__hash_content
 
 if __name__ == "__main__":
     QuickHash.progress_bar = False

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
+ <author>Aphelion D.</author>
  <class>Dialog</class>
  <widget class="QDialog" name="Dialog">
   <property name="geometry">
@@ -306,6 +307,16 @@
    </item>
   </layout>
  </widget>
+ <tabstops>
+  <tabstop>VaultNameEdit</tabstop>
+  <tabstop>vaultPathEdit</tabstop>
+  <tabstop>vaultPathToolButton</tabstop>
+  <tabstop>filePathEdit</tabstop>
+  <tabstop>filePathToolButton</tabstop>
+  <tabstop>OKButton</tabstop>
+  <tabstop>pushButton</tabstop>
+  <tabstop>linkLabel</tabstop>
+ </tabstops>
  <resources>
   <include location="pictures.qrc"/>
  </resources>

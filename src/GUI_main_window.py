@@ -6,11 +6,53 @@ from Ui_vaut_config_dialog import Ui_Dialog
 from PyQt5.QtCore import pyqtSignal,Qt
 import file_locker_main
 from ejson import dump,load
+from Quick_Hash import QuickHash
+import win32file
 import os
 from zxcvbn import zxcvbn
 import re
 
 app_config = None
+def is_encrypted(dir):
+    if os.path.isfile(os.path.join(dir,'WARNING-警告！对这个文件夹下你的文件的任何修改将不被保存.txt')):
+        return True
+    def get_all_files(dir):
+        if not os.path.isdir(dir):
+            raise OSError(f'No such directory: {dir}')
+        for i in os.walk(dir):
+            for n in i[2]:
+                yield os.path.join(i[0], n)
+    for f in get_all_files(dir):
+        if not QuickHash.matches_ignore(file_locker_main.ignores,f):
+            return False
+    return True
+def is_used(file):
+    try:
+        vHandle = win32file.CreateFile(file, win32file.GENERIC_READ, 0, None, win32file.OPEN_EXISTING, win32file.FILE_ATTRIBUTE_NORMAL, None)
+        return int(vHandle) == win32file.INVALID_HANDLE_VALUE
+    except:
+        return True
+    finally:
+        try:
+            win32file.CloseHandle(vHandle)
+        except:
+            pass
+def all_files_can_be_moved(dir):
+    '''检测一个目录下的文件是否都可以被移动，返回一个包含所有不可被移动的文件的list'''
+    def get_all_files_list(dir):
+        li = []
+        if not os.path.isdir(dir):
+            raise OSError(f'No such directory: {dir}')
+        for i in os.walk(dir):
+            for n in i[2]:
+                li.append(os.path.join(i[0], n))
+        return li
+    li = []
+    for i in get_all_files_list(dir):
+        if not os.access(i,os.W_OK) or not os.access(i,os.R_OK) or is_used(i):
+            li.append(i)
+    return li
+
 class MainWindowVaultConfig(QDialog, Ui_Dialog):
     path_updated = pyqtSignal(str,str,str,bool) # 信号，用于通知主窗口更新密码库信息。参数：vault_name,vault_path,file_path,editting
     def __init__(self, parent=None, vault_name="", vault_path="", file_path="", editting=False):
@@ -142,7 +184,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         super(MainWindow,self).__init__()
         self.setupUi(self)
         app_config = load(open("app_config.json",'r',encoding='utf8'))
-        self.current_working_on = "" # 防止正在进行加解密操作时进行其他文件夹的加解密
+        # self.current_working_on = "" # 防止正在进行加解密操作时进行其他文件夹的加解密
         self.status = ''
         for i in app_config:
             self.vaultList.addItem(i)
@@ -164,11 +206,23 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if not os.path.isdir(self.vault_path):
             self.status = "invalid_vault_path"
         # 库文分离的情况
-        elif os.path.isfile(os.path.join(self.file_path,'WARNING-警告！对这个文件夹下你的文件的任何修改将不被保存.txt')):
-            if not hasattr(self,'message_shown'):
-                QMessageBox.warning(self,"意外退出",f"上次解密{self.vault_name}时意外退出，现在输入密码将使用密码库中的文件解密",QMessageBox.Yes)
-                self.message_shown = True # 防止重复弹出
-            self.status = 'encrypted'
+        elif self.status == 'encrypting' or self.status == 'decrypting':
+            pass
+        elif os.path.isfile(
+                os.path.join(
+                    self.file_path,
+                    "WARNING-警告！对这个文件夹下你的文件的任何修改将不被保存.txt",
+                )
+            ):
+            if not hasattr(self, "message_shown"):
+                QMessageBox.warning(
+                    self,
+                    "意外退出",
+                    f"上次解密{self.vault_name}时意外退出，解密文件处于暴露状态！现在输入密码将使用密码库中的文件解密",
+                    QMessageBox.Yes,
+                )
+                self.message_shown = True  # 防止重复弹出
+            self.status = "encrypted"
         elif self.vault_path != self.file_path:
             # 如果file存在
             if os.path.isdir(self.file_path) and not only_check_if_dir_exist:
@@ -190,7 +244,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.status =  "invalid_file_path"
         # 库文相同
         elif os.path.isfile(os.path.join(self.vault_path,'config.json')):# 不存在配置文件时，新建密码
-            if file_locker_main.is_encrypted(self.vault_path):
+            if is_encrypted(self.vault_path):
                 self.status =  "encrypted"
             else:
                 self.status = "decrypted"
@@ -199,16 +253,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         return self.status
 
     def updateVaultInfo(self, clear_password_input = True, only_check_if_dir_exist = False):
-        if hasattr(self,'status'):
-            if self.status == 'decrypting' or self.status == 'encrypting':
-                self.current_working_on = self.vault_name
-        # 清空密码输入字段
+
         if clear_password_input:
+            # 清空密码输入字段
             self.passwordEdit.clear()
             self.progressBar.hide()
             self.passwordTwiceEdit.clear()
+            self.progressReminder.hide()
+        self.update_password_echo_mode(False)
         self.refreshButton.hide()
-        self.progressReminder.hide()
         self.passwordTwiceEdit.hide()
         self.passwordTwiceLabel.hide()
         self.vaultConfigWidget.show()
@@ -236,21 +289,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.vault_path = app_config[self.vault_name]['vault_path']
         self.vaultPathLabel.setText(f"密码库路径：{self.vault_path}")
         self.filePathLabel.setText(f"解密文件夹路径：{self.file_path}")
+        self.vaultInfoWidget.setEnabled(True)
+
+        self.update_status(only_check_if_dir_exist)
         # 如果有密码库被选中，开启密码库设置相关按钮
-        if self.current_working_on:
-            if self.vault_name == self.current_working_on:
-                # 如果正在操作的密码库和当前选中的密码库相同，说明正在加密或解密，显示进度条
+        if self.status == 'encrypting' or self.status == 'decrypting':
+                # 正在加密或解密，显示进度条
                 self.progressBar.show()
                 self.vaultConfigWidget.setEnabled(False)
                 self.passwordInputWidget.setEnabled(True)
-            else:
-                # 禁用用户操作
                 self.vaultConfigWidget.setEnabled(False)
-                self.vaultInfoWidget.setEnabled(False)
         else:
+            self.progressBar.hide()
             self.vaultConfigWidget.setEnabled(True)
-            self.vaultInfoWidget.setEnabled(True)
-        self.update_status(only_check_if_dir_exist)
 
         if self.status == "invalid_vault_path":
             # 如果加密目录不存在，显示警告
@@ -272,15 +323,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         elif self.status == "encrypted":
             self.lock.show()
             self.lock.setStyleSheet('border-image:url(:/link/assets/锁定.svg)')
-            self.vaultNameLabel.setText("密码库：%s（已加密）" % (self.vault_name))
-            self.OKButton.setText("解密")
+            if os.path.isfile(os.path.join(self.file_path,'WARNING-警告！对这个文件夹下你的文件的任何修改将不被保存.txt')):
+                self.vaultNameLabel.setText(f"密码库：{self.vault_name}（解密时意外退出！）")
+                self.OKButton.setText("从加密文件恢复")
+            else:
+                self.vaultNameLabel.setText("密码库：%s（已加密）" % (self.vault_name))
+                self.OKButton.setText("解密")
         elif self.status == "decrypted":
             self.lock.show()
             self.lock.setStyleSheet('border-image:url(:/link/assets/解锁.svg)')
             self.vaultNameLabel.setText("密码库：%s（已解密）" % self.vault_name)
             self.OKButton.setText("加密")
             self.changePassword.setEnabled(True)
-
 
     def newPassword(self):
         """如果点击了修改密码，或者需要创建新密码时，就使用这个"""
@@ -303,10 +357,25 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def OK(self):
         """点击OK的槽函数
         """
+        original_status = self.status
         self.updateVaultInfo(clear_password_input = False, only_check_if_dir_exist = True)
-        if 'invalid' in self.status:
+        if 'invalid' in self.status or self.status != original_status:
+            # 防止用户突然删除与解密相关的文件
+            self.passwordEdit.clear()
+            self.passwordTwiceEdit.clear()
             return
-        elif self.status == 'encrypted':
+        inaccessible_files = all_files_can_be_moved(self.vault_path)
+        if inaccessible_files:
+            QMessageBox.warning(self, '警告', '程序没有得到对密码库以下文件的读写权限！\n'+"\n".join(inaccessible_files))
+            self.updateVaultInfo()
+            return
+        if os.path.isdir(self.file_path):
+            inaccessible_files = all_files_can_be_moved(self.file_path)
+            if inaccessible_files:
+                QMessageBox.warning(self, '警告', '程序没有得到对解密文件夹路径中以下文件的读写权限！\n' + "\n".join(inaccessible_files))
+                self.updateVaultInfo()
+                return
+        if self.status == 'encrypted':
             self.work = file_locker_main.Decrypt(self,self.vault_path,self.file_path,self.passwordEdit.text())
             self.status = 'decrypting'
         elif self.status == 'decrypted':
@@ -319,6 +388,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             raise Exception('程序漏洞')
         self.progressReminder.clear()
         self.progressReminder.show()
+        self.vaultList.setEnabled(False)
+        self.addVaultButton.setEnabled(False)
+        self.vaultConfigWidget.setEnabled(False)
         self.progressBar.show()
         self.progressBar.setValue(0)
         self.progressBar.setEnabled(True)
@@ -336,10 +408,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.OK()
 
     def catch_encryption_error(self):
+        self.vaultList.setEnabled(True)
+        self.addVaultButton.setEnabled(True)
         self.progressReminder.setStyleSheet("color: rgb(184,5,5)")
         self.progressReminder.setText('密码错误')
         self.progressBar.hide()
-        self.current_working_on = ""
+        if self.status == 'encrypting':
+            self.status = 'decrypted'
+        elif self.status == 'decrypting':
+            self.status = 'encrypted'
+        else:
+            raise Exception('程序漏洞')
+        self.updateVaultInfo(False)
 
     def updateProgressBar(self, num):
         self.progressBar.setValue(num)
@@ -355,8 +435,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.progressReminder.setText(msg)
 
     def sendWarning(self,msg):
-        self.progressReminder.setStyleSheet("color: rgb(150, 133, 45)")
-        self.progressReminder.setText(msg)
+        QMessageBox.warning(self, '警告', msg, QMessageBox.Yes)
+        if self.status == 'decrypting':
+            self.status = 'decrypted'
+        else:
+            self.status = 'encrypted'
+        self.updateVaultInfo()
 
     def taskCompleted(self):
         if self.status == 'decrypting':
@@ -365,7 +449,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         else:
             msg = '加密成功'
             self.status = 'encrypted'
-        self.current_working_on = ""
+        self.vaultList.setEnabled(True)
+        self.addVaultButton.setEnabled(True)
         QMessageBox.information(self, msg, msg, QMessageBox.Yes)
         self.updateVaultInfo()
 

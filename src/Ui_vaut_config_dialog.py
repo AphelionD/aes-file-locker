@@ -163,6 +163,13 @@ class Ui_Dialog(object):
         self.pushButton.clicked.connect(Dialog.reject) # type: ignore
         self.OKButton.clicked.connect(Dialog.vaultConfigExecute) # type: ignore
         QtCore.QMetaObject.connectSlotsByName(Dialog)
+        Dialog.setTabOrder(self.VaultNameEdit, self.vaultPathEdit)
+        Dialog.setTabOrder(self.vaultPathEdit, self.vaultPathToolButton)
+        Dialog.setTabOrder(self.vaultPathToolButton, self.filePathEdit)
+        Dialog.setTabOrder(self.filePathEdit, self.filePathToolButton)
+        Dialog.setTabOrder(self.filePathToolButton, self.OKButton)
+        Dialog.setTabOrder(self.OKButton, self.pushButton)
+        Dialog.setTabOrder(self.pushButton, self.linkLabel)
 
     def retranslateUi(self, Dialog):
         _translate = QtCore.QCoreApplication.translate

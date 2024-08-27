@@ -14,6 +14,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
+        MainWindow.setEnabled(True)
         MainWindow.resize(819, 425)
         font = QtGui.QFont()
         font.setFamily("微软雅黑")
@@ -114,7 +115,7 @@ class Ui_MainWindow(object):
         font = QtGui.QFont()
         font.setFamily("微软雅黑")
         self.progressBar.setFont(font)
-        self.progressBar.setProperty("value", 24)
+        self.progressBar.setProperty("value", 0)
         self.progressBar.setObjectName("progressBar")
         self.gridLayout_3.addWidget(self.progressBar, 4, 0, 1, 2)
         self.passwordLabel = QtWidgets.QLabel(self.passwordInputWidget)
@@ -221,6 +222,17 @@ class Ui_MainWindow(object):
         self.passwordEdit.textChanged['QString'].connect(MainWindow.measurePasswordStrength) # type: ignore
         self.cancelButton.clicked.connect(MainWindow.cancelPasswordChange) # type: ignore
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
+        MainWindow.setTabOrder(self.vaultList, self.addVaultButton)
+        MainWindow.setTabOrder(self.addVaultButton, self.lock)
+        MainWindow.setTabOrder(self.lock, self.refreshButton)
+        MainWindow.setTabOrder(self.refreshButton, self.passwordEdit)
+        MainWindow.setTabOrder(self.passwordEdit, self.passwordTwiceEdit)
+        MainWindow.setTabOrder(self.passwordTwiceEdit, self.showPassword)
+        MainWindow.setTabOrder(self.showPassword, self.OKButton)
+        MainWindow.setTabOrder(self.OKButton, self.cancelButton)
+        MainWindow.setTabOrder(self.cancelButton, self.vaultSettings)
+        MainWindow.setTabOrder(self.vaultSettings, self.changePassword)
+        MainWindow.setTabOrder(self.changePassword, self.delVault)
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate

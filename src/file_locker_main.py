@@ -35,43 +35,12 @@ configuration = {  # customize your own configuration here
 }
 ignores = [
     "*.afd",
-    r"*\.__sys*",
+    r"*.__sys*",
     "*config.json",
     "*.ini",
     "*Thumbs.db",
     "*WARNING-警告！对这个文件夹下你的文件的任何修改将不被保存.txt"
 ]
-def all_files_can_be_moved(dir):
-    '''检测一个目录下的文件是否都可以被移动，返回一个包含所有不可被移动的文件的list'''
-    def get_all_files_list(dir):
-        li = []
-        if not os.path.isdir(dir):
-            raise OSError(f'No such directory: {dir}')
-        for i in os.walk(dir):
-            for n in i[2]:
-                li.append(os.path.join(i[0], n))
-        return li
-    li = []
-    for i in get_all_files_list(dir):
-        if not os.access(i,os.W_OK) or not os.access(i,os.R_OK):
-            li.append(i)
-    return li
-
-
-def is_encrypted(dir):
-    if os.path.isfile(os.path.join(dir,'WARNING-警告！对这个文件夹下你的文件的任何修改将不被保存.txt')):
-        return True
-    def get_all_files(dir):
-        if not os.path.isdir(dir):
-            raise OSError(f'No such directory: {dir}')
-        for i in os.walk(dir):
-            for n in i[2]:
-                yield os.path.join(i[0], n)
-    for f in get_all_files(dir):
-        if not QuickHash.matches_ignore(ignores,f):
-            return False
-    return True
-
 def modifyFileTime(filePath, createTime=None, modifyTime=None, accessTime=None):
     """
     用来修改任意文件的相关时间属性，传入unix时间戳
@@ -149,7 +118,7 @@ class Encrypt(QThread):
         QuickHash.ignore = ignores # 设置忽略的文件
         qh = QuickHash(mtime=True)
         qh.hash(self.file_dir)
-        hash_content = qh.hash_content
+        hash_content = qh.get_hash_content()
         files = hash_content['file'].keys()
         if len(files) == 0:
             self.send_warning.emit(f'{self.file_dir}中没有文件。')
@@ -260,7 +229,8 @@ class Encrypt(QThread):
         if updating:
             problem_files = [k for k,v in read_solver.items() if v[0] in problem_afds]
             for i in problem_files:
-                del read_qh.hash_content['file'][i]
+                read_qh.pop_item(file=[i])
+                del read_solver[i]
             cmp = QuickHashCmp(qh, read_qh)
             deleted_files = cmp.right_only + list(cmp.different.keys()) # 要删除的afd文件
             updated_files = cmp.left_only + list(cmp.different.keys())  # 要更新或添加的文件
@@ -290,7 +260,7 @@ class Encrypt(QThread):
         li = list(enumerate(solver.keys()))
         self.pb_total_changed.emit(len(li))
         with tqdm(li) as tq:
-            self.work_thread_status_changed.emit("正在加密...")
+            self.work_thread_status_changed.emit("正在加密，请不要意外关闭程序")
             for index,i in tq:
                 if os.path.exists(os.path.join(afd_target_dir, solver[i][0])):
                     # 如果这个文件已经存在，那么说明是之前就已经有过的一样的文件，无需再次加密
@@ -421,6 +391,7 @@ class Decrypt(Encrypt):
         # 结构：{AFD文件名: (相对路径文件名, iv向量，(创建时间，修改时间，访问时间), 每个文件的密钥)}
 
         '''验证afd文件的合法性'''
+        msg = ""
         QuickHash.ignore = [x for x in ignores if x not in ["*.afd",r"*\.__sys*"]]
         if os.path.exists(os.path.join(self.vault_dir,'config.json')):
             read_qh_afd = QuickHash.from_str(read_config_json['AFD_QuickHash'])
@@ -428,7 +399,6 @@ class Decrypt(Encrypt):
             cmp = QuickHashCmp(read_qh_afd,qh_afd)
             if not cmp.is_equal:
                 problems = cmp.left_only+cmp.right_only+list(cmp.different.keys())
-                msg = ""
                 msg += "以下在.__sys文件中的afd文件已经损坏或丢失!!!请确保.__sys文件夹下的文件不被修改."
                 print("[yellow]WARNING: These afd files in the .__sys folder are invalid!!!Make sure you don't modify the files under the .__sys folder.[/yellow]")
                 for i in problems:
@@ -437,16 +407,15 @@ class Decrypt(Encrypt):
         QuickHash.ignore = ignores
 
         '''创建目录'''
-        for i in read_qh.hash_content['dir']:  # 创建目录
+        for i in read_qh.get_hash_content()['dir']:  # 创建目录
             if not os.path.isdir(os.path.join(self.file_dir, i)):
                 os.makedirs(os.path.join(self.file_dir, i))
 
         aes.mode = 'CBC'
-        li = list(enumerate(len_files:=glob(os.path.join(self.vault_dir, '.__sys', '*.afd'))))
+        li = list(enumerate(glob(os.path.join(self.vault_dir, '.__sys', '*.afd'))))
         self.pb_total_changed.emit(len(li))
         with tqdm(li) as tq:
             self.work_thread_status_changed.emit('正在解密')
-            warn_msg = ''
             for index,i in tq:
                 get = solver[os.path.basename(i)]
                 with open(i, 'rb') as f:
@@ -454,7 +423,7 @@ class Decrypt(Encrypt):
                         aes.key = get[3]
                         content = aes.decrypt(f.read(), iv=get[1])
                     except:
-                        warn_msg += f'WARNING: 在解密以下文件时发生错误：{i}， {get[0]}\n'
+                        msg += f'WARNING: 在解密以下文件时发生错误：{i}， {get[0]}\n'
                         print(f'[yellow]WARNING: exception when decrypting: {i}, {get[0]}[/yellow]')
                         continue
                 with open(os.path.join(self.file_dir, get[0]), 'wb') as f:
@@ -463,15 +432,15 @@ class Decrypt(Encrypt):
                     if len(get)>=3:
                         modifyFileTime(os.path.join(self.file_dir, get[0]), *get[2])
                 except Exception as e:
-                    warn_msg += f'WARNING: exception when modifying file time: {i}, {get[0]}\n'
+                    msg += f'WARNING: exception when modifying file time: {i}, {get[0]}\n'
                     print(f'[yellow]WARNING: exception when modifying file time: {i}, {get[0]}[/yellow]')
                     continue
                 self.pb_update.emit(index+1)
-            if len(warn_msg)!=0:
-                self.send_warning.emit(warn_msg)
-            else:
-                self.work_thread_status_changed.emit('解密完成')
+        if len(msg)!=0:
+            self.send_warning.emit(msg)
+        else:
+            self.work_thread_status_changed.emit('解密完成')
+            self.task_completed.emit()
         del content
         os.remove(os.path.join(self.file_dir,'WARNING-警告！对这个文件夹下你的文件的任何修改将不被保存.txt'))
-        self.task_completed.emit()
         return
