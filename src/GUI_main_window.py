@@ -1,5 +1,5 @@
 import sys
-from PyQt5.QtGui import QKeyEvent
+from PyQt5.QtGui import QKeyEvent, QIcon
 from PyQt5.QtWidgets import QMainWindow,QApplication,QLineEdit,QMessageBox, QFileDialog, QDialog
 from Ui_main_window import Ui_MainWindow
 from Ui_vaut_config_dialog import Ui_Dialog
@@ -474,5 +474,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     myWin = MainWindow()
+    icon = QIcon('assets/AFL_icon.ico')
+    myWin.setWindowIcon(icon)
     myWin.show()
     sys.exit(app.exec_())
