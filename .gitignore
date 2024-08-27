@@ -178,3 +178,4 @@ pyrightconfig.json
 # End of https://www.toptal.com/developers/gitignore/api/python
 
 开发指南.md
+src/app_config.json

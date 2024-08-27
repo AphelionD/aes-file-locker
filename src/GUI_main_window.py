@@ -557,6 +557,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 
 if __name__ == "__main__":
+    if not os.path.isfile('app_config.json'):
+        dump({},open('app_config.json','w',encoding='utf-8'))
     app = QApplication(sys.argv)
     myWin = MainWindow()
     icon = QIcon('assets/AFL_icon.ico')
