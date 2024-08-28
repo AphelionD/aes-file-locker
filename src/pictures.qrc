@@ -3,5 +3,6 @@
     <file>assets/link.svg</file>
     <file>assets/解锁.svg</file>
     <file>assets/锁定.svg</file>
+    <file>assets/AFL_icon.ico</file>
   </qresource>
 </RCC>

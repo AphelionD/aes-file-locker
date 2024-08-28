@@ -1,6 +1,3 @@
-'''AES_file_locker [version 2.1.1]
-Powered by Python.
-(c)2024 Illumination Studio, Yanteen Technology,.Ltd.'''
 from AES import AES
 from argon2 import PasswordHasher
 # https://pypi.org/project/argon2-cffi/
@@ -17,7 +14,7 @@ if sys.platform == "win32":
     from win32file import GENERIC_READ, GENERIC_WRITE, OPEN_EXISTING
     from pywintypes import Time
 from Quick_Hash import QuickHash,QuickHashCmp
-from ejson import dump,dumps,load,loads
+from ejson import dumps,loads
 from uuid import uuid4
 from rich import print
 from PyQt5.QtCore import QThread, pyqtSignal
@@ -433,6 +430,7 @@ class Decrypt(Encrypt):
                 except Exception as e:
                     msg += f'WARNING: exception when modifying file time: {i}, {get[0]}\n'
                     print(f'[yellow]WARNING: exception when modifying file time: {i}, {get[0]}[/yellow]')
+                    print(e)
                     continue
                 self.pb_update.emit(index+1)
         if len(msg)!=0:

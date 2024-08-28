@@ -1,5 +1,5 @@
 import sys
-from PyQt5.QtGui import QKeyEvent, QIcon
+from PyQt5.QtGui import QKeyEvent, QIcon, QPixmap
 from PyQt5.QtWidgets import QMainWindow,QApplication,QLineEdit,QMessageBox, QFileDialog, QDialog
 from Ui_main_window import Ui_MainWindow
 from Ui_vaut_config_dialog import Ui_Dialog
@@ -13,6 +13,14 @@ from zxcvbn import zxcvbn
 import re
 
 app_config = None
+
+def app_path():
+    """Returns the base application path."""
+    if hasattr(sys, 'frozen'):
+        # Handles PyInstaller
+        return os.path.dirname(sys.executable)  #使用pyinstaller打包后的exe目录
+    return os.path.dirname(__file__)                 #没打包前的py目录
+
 def is_encrypted(dir):
     if os.path.isfile(os.path.join(dir,'WARNING-警告！对这个文件夹下你的文件的任何修改将不被保存.txt')):
         return True
@@ -158,7 +166,7 @@ class MainWindowVaultConfig(QDialog, Ui_Dialog):
                 "vault_path": self.vault_path,
                 "file_path": self.file_path
             }
-        dump(app_config,open("app_config.json",'w',encoding='utf8'))
+        dump(app_config,open(os.path.join(app_path(),'app_config.json'),'w',encoding='utf8'))
         self.path_updated.emit(self.VaultNameEdit.text(),self.vault_path,self.file_path, self.editting)
         self.close()
 
@@ -183,7 +191,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         global app_config
         super(MainWindow,self).__init__()
         self.setupUi(self)
-        app_config = load(open("app_config.json",'r',encoding='utf8'))
+        # 图标
+        filename = self.resource_path(os.path.join("assets","AFL_icon.ico"))
+        icon = QIcon()
+        icon.addPixmap(QPixmap(filename), QIcon.Normal, QIcon.Off)
+        self.setWindowIcon(icon)
+
+        app_config = load(open(os.path.join(app_path(),'app_config.json'),'r',encoding='utf8'))
         # self.current_working_on = "" # 防止正在进行加解密操作时进行其他文件夹的加解密
         self.status = ''
         for i in app_config:
@@ -551,17 +565,34 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         reply = self.showWarning("确认删除密码库吗？程序不会删除你的文件。")
         if reply == QMessageBox.Yes:
             del app_config[self.vault_name]
-            dump(app_config,open("app_config.json",'w',encoding='utf8'))
+            dump(app_config,open(os.path.join(app_path(),'app_config.json'),'w',encoding='utf8'))
             self.vaultList.takeItem(self.vaultList.currentRow())
             self.updateVaultInfo()
+    def resource_path(self, relative_path):
+        """
+        根据给定的相对路径获取资源的绝对路径。
+
+        这个方法是为了处理PyInstaller打包后的可执行文件资源访问问题。
+        在打包模式下，sys.frozen会被设置为True，从而使用sys._MEIPASS作为基路径；
+        在非打包模式下，则使用当前目录作为基路径。
+
+        参数:
+        relative_path (str): 资源的相对路径。
+
+        返回:
+        str: 资源的绝对路径。
+        """
+        if getattr(sys, 'frozen', False):
+            base_path = sys._MEIPASS
+        else:
+            base_path = os.path.abspath(".")
+        return os.path.join(base_path, relative_path)
 
 
 if __name__ == "__main__":
-    if not os.path.isfile('app_config.json'):
-        dump({},open('app_config.json','w',encoding='utf-8'))
+    if not os.path.isfile(os.path.join(app_path(),'app_config.json')):
+        dump({},open(os.path.join(app_path(),'app_config.json'),'w',encoding='utf-8'))
     app = QApplication(sys.argv)
     myWin = MainWindow()
-    icon = QIcon('assets/AFL_icon.ico')
-    myWin.setWindowIcon(icon)
     myWin.show()
     sys.exit(app.exec_())
